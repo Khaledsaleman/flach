@@ -41,7 +41,7 @@ def handle_update(update):
         )
         reply_markup = {
             "inline_keyboard": [[
-                {"text": "🎮 فتح اللعبة", "web_app": {"url": "https://your-github-username.github.io/your-repo-name/"}}
+                {"text": "🎮 فتح اللعبة", "web_app": {"url": "https://khaledsaleman.github.io/flach/"}}
             ]]
         }
         send_message(chat_id, welcome_text, reply_markup)
