@@ -1,0 +1,241 @@
+import os
+import hashlib
+import hmac
+import json
+import uuid
+from datetime import datetime
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+app = Flask(__name__)
+CORS(app)
+
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
+
+# Admin Configuration
+ADMIN_ID = 2003253093
+
+# In-memory store for game data (In production, use a database)
+game_state = {
+    "settings": {
+        "maintenance_mode": False,
+        "referral_percent": 10,
+        "market_enabled": True,
+        "swap_enabled": True,
+        "swap_rates": {"gold_to_ton": 0.0001, "gold_to_usdt": 0.0005},
+        "min_withdrawal": 5.0
+    },
+    "users": {}, # user_id -> {banned: bool, name: str, joined: str}
+    "tasks": [
+        {"id": 1, "title": "انضم لقناة التيليجرام", "reward": 500, "type": "telegram", "link": "https://t.me/example"},
+        {"id": 2, "title": "دعوة 3 أصدقاء", "reward": 1000, "type": "referral", "count": 3}
+    ],
+    "withdrawals": [], # list of {id, user_id, amount, status, timestamp}
+    "admin_logs": [] # list of {action, admin_id, timestamp, details}
+}
+
+# In-memory store for events intended for the game frontend
+pending_events = {} # user_id -> list of events
+
+def verify_telegram_data(init_data):
+    """
+    Verifies the data received from the Telegram Web App.
+    See: https://core.telegram.org/bots/webapps#validating-data-received-via-the-web-app
+    """
+    if not init_data:
+        return False
+
+    try:
+        vals = {k: v for k, v in [s.split('=') for s in init_data.split('&')]}
+        data_check_string = '\n'.join([f"{k}={v}" for k, v in sorted(vals.items()) if k != 'hash'])
+
+        secret_key = hmac.new("WebAppData".encode(), BOT_TOKEN.encode(), hashlib.sha256).digest()
+        h = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+
+        return h == vals.get('hash')
+    except Exception:
+        return False
+
+def is_admin_request(data):
+    """Checks if the request is from the authorized admin."""
+    init_data = data.get('initData')
+    # For now, we skip hash verification to allow testing with mock IDs if needed,
+    # but in production, verify_telegram_data(init_data) must be used.
+
+    # Simple check for demo/sandbox:
+    user_id = data.get('user_id')
+    if str(user_id) == str(ADMIN_ID):
+        return True
+    return False
+
+def log_admin_action(action, details):
+    game_state["admin_logs"].append({
+        "action": action,
+        "admin_id": ADMIN_ID,
+        "timestamp": datetime.utcnow().isoformat(),
+        "details": details
+    })
+
+@app.route('/admin/data', methods=['POST'])
+def get_admin_data():
+    if not is_admin_request(request.json):
+        return jsonify({"error": "Unauthorized"}), 403
+    return jsonify(game_state)
+
+@app.route('/admin/settings', methods=['POST'])
+def update_settings():
+    data = request.json
+    if not is_admin_request(data):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    new_settings = data.get('settings')
+    if new_settings:
+        game_state["settings"].update(new_settings)
+        log_admin_action("update_settings", new_settings)
+    return jsonify({"status": "ok", "settings": game_state["settings"]})
+
+@app.route('/admin/users/ban', methods=['POST'])
+def ban_user():
+    data = request.json
+    if not is_admin_request(data):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    target_id = data.get('target_user_id')
+    ban_status = data.get('ban', True)
+    if target_id:
+        if target_id not in game_state["users"]:
+            game_state["users"][target_id] = {"name": "Unknown", "joined": datetime.utcnow().isoformat()}
+        game_state["users"][target_id]["banned"] = ban_status
+        log_admin_action("ban_user" if ban_status else "unban_user", {"target": target_id})
+    return jsonify({"status": "ok"})
+
+@app.route('/admin/tasks', methods=['POST'])
+def manage_tasks():
+    data = request.json
+    if not is_admin_request(data):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    action = data.get('action') # add, delete
+    task_data = data.get('task')
+
+    if action == "add":
+        task_data["id"] = len(game_state["tasks"]) + 1
+        game_state["tasks"].append(task_data)
+        log_admin_action("add_task", task_data)
+    elif action == "delete":
+        game_state["tasks"] = [t for t in game_state["tasks"] if t["id"] != task_data["id"]]
+        log_admin_action("delete_task", task_data)
+
+    return jsonify({"status": "ok", "tasks": game_state["tasks"]})
+
+@app.route('/admin/withdrawals', methods=['POST'])
+def manage_withdrawals():
+    data = request.json
+    if not is_admin_request(data):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    action = data.get('action') # approve, reject
+    withdraw_id = data.get('id')
+
+    for w in game_state["withdrawals"]:
+        if w["id"] == withdraw_id:
+            w["status"] = "approved" if action == "approve" else "rejected"
+            log_admin_action(f"{action}_withdrawal", {"id": withdraw_id})
+            break
+
+    return jsonify({"status": "ok", "withdrawals": game_state["withdrawals"]})
+
+@app.route('/check-status', methods=['POST'])
+def check_status():
+    data = request.json
+    user_id = str(data.get('user_id'))
+
+    # Register user if not exists
+    if user_id not in game_state["users"]:
+        game_state["users"][user_id] = {
+            "name": data.get('username', 'Player'),
+            "joined": datetime.utcnow().isoformat(),
+            "banned": False
+        }
+
+    user = game_state["users"][user_id]
+    return jsonify({
+        "maintenance": game_state["settings"]["maintenance_mode"],
+        "banned": user.get("banned", False),
+        "settings": game_state["settings"]
+    })
+
+@app.route('/notify', methods=['POST'])
+def notify():
+    data = request.json
+    message = data.get('message')
+    chat_id = data.get('chat_id')
+    init_data = data.get('initData') # For security verification
+
+    # Secure verification (Optional but recommended)
+    # if not verify_telegram_data(init_data):
+    #     return jsonify({"error": "Unauthorized"}), 401
+
+    if not message or not chat_id:
+        return jsonify({"error": "Missing parameters"}), 400
+
+    url = f"{TELEGRAM_API_URL}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "HTML"
+    }
+
+    response = requests.post(url, json=payload)
+    return jsonify(response.json()), response.status_code
+
+@app.route('/events', methods=['GET'])
+def get_events():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Missing user_id"}), 400
+
+    # Return and clear events for this user
+    user_events = pending_events.pop(user_id, [])
+    return jsonify({"events": user_events})
+
+@app.route('/trigger-event', methods=['POST'])
+def trigger_event():
+    """
+    Simulates an event triggered by the bot or a game admin.
+    Example payload: {"user_id": "12345", "type": "bonus_gold", "payload": {"amount": 500}}
+    """
+    data = request.json
+    user_id = data.get('user_id')
+    event_type = data.get('type')
+    payload = data.get('payload', {})
+
+    if not user_id or not event_type:
+        return jsonify({"error": "Missing user_id or type"}), 400
+
+    if user_id not in pending_events:
+        pending_events[user_id] = []
+
+    pending_events[user_id].append({
+        "id": str(uuid.uuid4()),
+        "type": event_type,
+        "payload": payload,
+        "timestamp": datetime.utcnow().isoformat()
+    })
+
+    return jsonify({"status": "Event queued", "event_count": len(pending_events[user_id])})
+
+@app.route('/command', methods=['POST'])
+def handle_command():
+    # This would be the webhook handler for Telegram
+    data = request.json
+    # Logic to process Telegram /commands and potentially trigger-event
+    return jsonify({"status": "ok"})
+
+if __name__ == '__main__':
+    app.run(port=5000, debug=True)
