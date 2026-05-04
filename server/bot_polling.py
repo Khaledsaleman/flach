@@ -7,7 +7,7 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
-BACKEND_URL = "http://localhost:5000"
+BACKEND_URL = "http://127.0.0.1:5000"
 
 def send_message(chat_id, text, reply_markup=None):
     url = f"{API_URL}/sendMessage"
@@ -35,9 +35,11 @@ def handle_update(update):
 
     if text == "/start":
         welcome_text = (
-            "👋 <b>أهلاً بك في CryptoClash!</b>\n\n"
-            "ابدأ ببناء قاعدتك والمنافسة في عالم الكريبتو.\n"
-            "اضغط على الزر أدناه لفتح اللعبة."
+            "🚀 <b>تم تحديث CryptoClash! (v2.1)</b>\n\n"
+            "• تم تفعيل نظام الإدارة للأدمن.\n"
+            "• تم إصلاح رابط اللعبة.\n"
+            "• يمكنك الآن طلب هدايا عبر /gift.\n\n"
+            "اضغط على الزر أدناه للبدء:"
         )
         reply_markup = {
             "inline_keyboard": [[
@@ -47,7 +49,6 @@ def handle_update(update):
         send_message(chat_id, welcome_text, reply_markup)
 
     elif text == "/gift":
-        # Simulate triggering an in-game event via the backend
         try:
             response = requests.post(f"{BACKEND_URL}/trigger-event", json={
                 "user_id": user_id,
@@ -66,7 +67,7 @@ def main():
         print("TELEGRAM_BOT_TOKEN not found in .env")
         return
 
-    print("Bot polling started...")
+    print("Bot polling started (v2.1)...")
     last_update_id = 0
 
     while True:
