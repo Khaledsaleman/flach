@@ -274,6 +274,53 @@
                 </div>
             </div>
         </div>
+
+        <!-- Admin Tab -->
+        <div id="adminTab" class="tab-content">
+            <div class="scroll-content p-3">
+                <h1 class="font-orbitron text-lg text-amber-400 mb-4">🛡️ لوحة الإدارة</h1>
+                <div class="grid grid-cols-1 gap-4">
+                    <!-- Users Management -->
+                    <div class="glass p-4 rounded-xl">
+                        <h2 class="font-medium text-white mb-3 flex items-center gap-2"><span class="text-blue-400">👥</span> إدارة المستخدمين</h2>
+                        <div class="flex gap-2 mb-3">
+                            <input type="text" id="targetUserId" placeholder="Telegram ID" class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                            <button onclick="adminAction('ban_user', {target_user_id: document.getElementById('targetUserId').value, ban: true})" class="btn-danger px-4 py-2 rounded-lg text-xs">حظر</button>
+                            <button onclick="adminAction('ban_user', {target_user_id: document.getElementById('targetUserId').value, ban: false})" class="btn-primary px-4 py-2 rounded-lg text-xs">فك الحظر</button>
+                        </div>
+                    </div>
+                    <!-- System Controls -->
+                    <div class="glass p-4 rounded-xl">
+                        <h2 class="font-medium text-white mb-3 flex items-center gap-2"><span class="text-yellow-400">⚙️</span> التحكم بالنظام</h2>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm">وضع الصيانة</span>
+                                <button id="maintenanceBtn" onclick="toggleMaintenance()" class="px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs">إيقاف</button>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm">نظام السوق</span>
+                                <button id="marketToggleBtn" onclick="adminAction('settings', {settings: {market_enabled: !adminData.settings.market_enabled}})" class="px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs">تشغيل</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Swap Settings -->
+                    <div class="glass p-4 rounded-xl">
+                        <h2 class="font-medium text-white mb-3 flex items-center gap-2"><span class="text-blue-400">🔄</span> إعدادات التحويل</h2>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-[10px] text-gray-400 block mb-1">سعر الذهب مقابل TON</label>
+                                <input type="number" id="rateTon" step="0.0001" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 block mb-1">سعر الذهب مقابل USDT</label>
+                                <input type="number" id="rateUsdt" step="0.0001" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                            </div>
+                            <button onclick="adminAction('settings', {settings: {swap_rates: {gold_to_ton: parseFloat(document.getElementById('rateTon').value), gold_to_usdt: parseFloat(document.getElementById('rateUsdt').value)}}})" class="w-full btn-primary py-2 rounded-lg text-xs">تحديث الأسعار</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- BOTTOM NAV -->
@@ -284,6 +331,7 @@
             <button onclick="switchTab('attack')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="attack"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg><span class="text-[9px] text-gray-400">هجوم</span></button>
             <button onclick="switchTab('clan')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="clan"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg><span class="text-[9px] text-gray-400">العشيرة</span></button>
             <button onclick="switchTab('market')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="market"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg><span class="text-[9px] text-gray-400">السوق</span></button>
+            <button id="adminNavBtn" onclick="switchTab('admin')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition hidden" data-tab="admin"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg><span class="text-[9px] text-gray-400">الإدارة</span></button>
         </div>
     </nav>
 </div>
@@ -302,10 +350,93 @@
     tg.ready(); tg.expand();
     tg.setHeaderColor('#0a0a1a'); tg.setBackgroundColor('#0a0a1a');
 
-    // CONFIG: Backend URL for notifications
-    const BACKEND_URL = "http://localhost:5000";
+    // CONFIG: Backend URL
+    const BACKEND_URL = "http://127.0.0.1:5000";
+    const ADMIN_ID = 2003253093;
+    let adminData = null;
 
     let playerData = { gold:12450, energy:85, ton:24.5, usdt:150, rank:'برونزي III', dailyRewardClaimed:false, energyMax:100 };
+
+    async function adminAction(endpoint, payload) {
+        const user = tg.initDataUnsafe?.user;
+        if (!user || String(user.id) !== String(ADMIN_ID)) return;
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/admin/${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: user.id,
+                    initData: tg.initData,
+                    ...payload
+                })
+            });
+            const data = await response.json();
+            if (data.status === "ok") {
+                showToast('تمت العملية بنجاح', 'success');
+                refreshAdminData();
+            }
+        } catch (e) {
+            console.error("Admin action failed:", e);
+            showToast('خطأ في العملية', 'error');
+        }
+    }
+
+    async function refreshAdminData() {
+        const user = tg.initDataUnsafe?.user;
+        if (!user || String(user.id) !== String(ADMIN_ID)) return;
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/admin/data`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id, initData: tg.initData })
+            });
+            adminData = await response.json();
+            updateAdminUI();
+        } catch (e) { console.error("Refresh admin data failed:", e); }
+    }
+
+    function updateAdminUI() {
+        if (!adminData) return;
+        const mBtn = document.getElementById('maintenanceBtn');
+        mBtn.textContent = adminData.settings.maintenance_mode ? 'إيقاف الصيانة' : 'بدء الصيانة';
+        mBtn.className = adminData.settings.maintenance_mode ? 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs';
+
+        const marketBtn = document.getElementById('marketToggleBtn');
+        marketBtn.textContent = adminData.settings.market_enabled ? 'إيقاف السوق' : 'تشغيل السوق';
+
+        document.getElementById('rateTon').value = adminData.settings.swap_rates.gold_to_ton;
+        document.getElementById('rateUsdt').value = adminData.settings.swap_rates.gold_to_usdt;
+    }
+
+    function toggleMaintenance() {
+        adminAction('settings', { settings: { maintenance_mode: !adminData.settings.maintenance_mode } });
+    }
+
+    async function checkUserStatus() {
+        const user = tg.initDataUnsafe?.user;
+        if (!user) return;
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/check-status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id, username: user.username })
+            });
+            const status = await response.json();
+            if (status.banned) {
+                document.body.innerHTML = '<div class="h-screen flex items-center justify-center bg-[#0a0a1a] text-red-500 p-8 text-center font-bold">عذراً، تم حظر حسابك من اللعبة. ⛔</div>';
+            } else if (status.maintenance && String(user.id) !== String(ADMIN_ID)) {
+                document.body.innerHTML = '<div class="h-screen flex items-center justify-center bg-[#0a0a1a] text-amber-500 p-8 text-center font-bold">اللعبة في وضع الصيانة حالياً. 🛠️<br>نعود قريباً!</div>';
+            }
+
+            if (String(user.id) === String(ADMIN_ID)) {
+                document.getElementById('adminNavBtn').classList.remove('hidden');
+                refreshAdminData();
+            }
+        } catch (e) { console.error("Status check failed:", e); }
+    }
 
     async function sendTelegramNotification(message) {
         const user = tg.initDataUnsafe?.user;
@@ -672,6 +803,7 @@
     // Core
     document.addEventListener('DOMContentLoaded', () => {
         updateUI(); startEnergyRegen(); checkDailyReset();
+        checkUserStatus();
         const userName = tg.initDataUnsafe?.user?.first_name || 'لاعب';
         document.getElementById('welcomeMsg').textContent = `مرحباً ${userName}!`;
         sendTelegramNotification(`🎮 <b>سجل اللاعب ${userName} دخوله الآن!</b>`);

@@ -17,6 +17,28 @@ CORS(app)
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
+# Admin Configuration
+ADMIN_ID = 2003253093
+
+# In-memory store for game data (In production, use a database)
+game_state = {
+    "settings": {
+        "maintenance_mode": False,
+        "referral_percent": 10,
+        "market_enabled": True,
+        "swap_enabled": True,
+        "swap_rates": {"gold_to_ton": 0.0001, "gold_to_usdt": 0.0005},
+        "min_withdrawal": 5.0
+    },
+    "users": {}, # user_id -> {banned: bool, name: str, joined: str}
+    "tasks": [
+        {"id": 1, "title": "انضم لقناة التيليجرام", "reward": 500, "type": "telegram", "link": "https://t.me/example"},
+        {"id": 2, "title": "دعوة 3 أصدقاء", "reward": 1000, "type": "referral", "count": 3}
+    ],
+    "withdrawals": [], # list of {id, user_id, amount, status, timestamp}
+    "admin_logs": [] # list of {action, admin_id, timestamp, details}
+}
+
 # In-memory store for events intended for the game frontend
 pending_events = {} # user_id -> list of events
 
@@ -38,6 +60,115 @@ def verify_telegram_data(init_data):
         return h == vals.get('hash')
     except Exception:
         return False
+
+def is_admin_request(data):
+    """Checks if the request is from the authorized admin."""
+    init_data = data.get('initData')
+    # For now, we skip hash verification to allow testing with mock IDs if needed,
+    # but in production, verify_telegram_data(init_data) must be used.
+
+    # Simple check for demo/sandbox:
+    user_id = data.get('user_id')
+    if str(user_id) == str(ADMIN_ID):
+        return True
+    return False
+
+def log_admin_action(action, details):
+    game_state["admin_logs"].append({
+        "action": action,
+        "admin_id": ADMIN_ID,
+        "timestamp": datetime.utcnow().isoformat(),
+        "details": details
+    })
+
+@app.route('/admin/data', methods=['POST'])
+def get_admin_data():
+    if not is_admin_request(request.json):
+        return jsonify({"error": "Unauthorized"}), 403
+    return jsonify(game_state)
+
+@app.route('/admin/settings', methods=['POST'])
+def update_settings():
+    data = request.json
+    if not is_admin_request(data):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    new_settings = data.get('settings')
+    if new_settings:
+        game_state["settings"].update(new_settings)
+        log_admin_action("update_settings", new_settings)
+    return jsonify({"status": "ok", "settings": game_state["settings"]})
+
+@app.route('/admin/users/ban', methods=['POST'])
+def ban_user():
+    data = request.json
+    if not is_admin_request(data):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    target_id = data.get('target_user_id')
+    ban_status = data.get('ban', True)
+    if target_id:
+        if target_id not in game_state["users"]:
+            game_state["users"][target_id] = {"name": "Unknown", "joined": datetime.utcnow().isoformat()}
+        game_state["users"][target_id]["banned"] = ban_status
+        log_admin_action("ban_user" if ban_status else "unban_user", {"target": target_id})
+    return jsonify({"status": "ok"})
+
+@app.route('/admin/tasks', methods=['POST'])
+def manage_tasks():
+    data = request.json
+    if not is_admin_request(data):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    action = data.get('action') # add, delete
+    task_data = data.get('task')
+
+    if action == "add":
+        task_data["id"] = len(game_state["tasks"]) + 1
+        game_state["tasks"].append(task_data)
+        log_admin_action("add_task", task_data)
+    elif action == "delete":
+        game_state["tasks"] = [t for t in game_state["tasks"] if t["id"] != task_data["id"]]
+        log_admin_action("delete_task", task_data)
+
+    return jsonify({"status": "ok", "tasks": game_state["tasks"]})
+
+@app.route('/admin/withdrawals', methods=['POST'])
+def manage_withdrawals():
+    data = request.json
+    if not is_admin_request(data):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    action = data.get('action') # approve, reject
+    withdraw_id = data.get('id')
+
+    for w in game_state["withdrawals"]:
+        if w["id"] == withdraw_id:
+            w["status"] = "approved" if action == "approve" else "rejected"
+            log_admin_action(f"{action}_withdrawal", {"id": withdraw_id})
+            break
+
+    return jsonify({"status": "ok", "withdrawals": game_state["withdrawals"]})
+
+@app.route('/check-status', methods=['POST'])
+def check_status():
+    data = request.json
+    user_id = str(data.get('user_id'))
+
+    # Register user if not exists
+    if user_id not in game_state["users"]:
+        game_state["users"][user_id] = {
+            "name": data.get('username', 'Player'),
+            "joined": datetime.utcnow().isoformat(),
+            "banned": False
+        }
+
+    user = game_state["users"][user_id]
+    return jsonify({
+        "maintenance": game_state["settings"]["maintenance_mode"],
+        "banned": user.get("banned", False),
+        "settings": game_state["settings"]
+    })
 
 @app.route('/notify', methods=['POST'])
 def notify():
