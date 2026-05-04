@@ -51,13 +51,21 @@
         }
         #mapContainer:active { cursor: grabbing; }
 
-        #mapWorld { position: absolute; transform-origin: 0 0; }
+        #mapWorld {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            background-color: #1a1a2e; /* Fallback background */
+        }
 
         /* الصورة الأصلية - بدون أي تعديل */
         #mapBg {
             display: block;
             user-select: none;
             pointer-events: none;
+            width: 832px;
+            height: 1248px;
             /* لا فلاتر، لا تعديل ألوان، لا قص - الصورة كما هي تماماً */
         }
 
@@ -297,7 +305,7 @@
     let playerData = { gold:12450, energy:85, ton:24.5, usdt:150, rank:'برونزي III', dailyRewardClaimed:false, energyMax:100 };
 
     // ========== MAP SYSTEM ==========
-    const MW = 800, MH = 1000;
+    const MW = 832, MH = 1248;
     const COLS = 20, ROWS = 25;
     const GS = MW / COLS;
     const blockmap = [];
@@ -368,24 +376,33 @@
     let mapState = {x:0, y:0, zoom:1, dragging:false, sx:0, sy:0, smx:0, smy:0};
     let buildMode = false, selectedBuildType = null;
 
+    let eventsSetup = false;
     function initBase() {
-        initBlockmap();
+        console.log("Initializing Base Map...");
+        if (!eventsSetup) {
+            initBlockmap();
+            setupBuildToolbar();
+            setupMapEvents();
+            eventsSetup = true;
+        }
+
         const container = document.getElementById('mapContainer');
         const centralArea = document.getElementById('centralArea');
-        const availW = Math.min(centralArea.clientWidth, 480);
-        const availH = centralArea.clientHeight;
+        const availW = centralArea.clientWidth || 400;
+        const availH = centralArea.clientHeight || 600;
+        console.log(`Available dimensions: ${availW}x${availH}`);
 
         // نسبة 2:3 للهاتف
         let cw, ch;
         if (availW / availH > 2/3) {
-            ch = availH - 10;
+            ch = availH - 20;
             cw = ch * (2/3);
         } else {
-            cw = availW - 10;
+            cw = availW - 20;
             ch = cw * (3/2);
         }
-        cw = Math.min(cw, 420);
-        ch = Math.min(ch, 630);
+        cw = Math.min(cw, availW - 10);
+        ch = Math.min(ch, availH - 10);
 
         container.style.width = cw + 'px';
         container.style.height = ch + 'px';
@@ -395,17 +412,27 @@
         gridCanvas.width = MW;
         gridCanvas.height = MH;
 
-        document.getElementById('mapWorld').style.width = MW + 'px';
-        document.getElementById('mapWorld').style.height = MH + 'px';
+        const mapWorld = document.getElementById('mapWorld');
+        const mapBg = document.getElementById('mapBg');
+
+        mapWorld.style.width = MW + 'px';
+        mapWorld.style.height = MH + 'px';
+        mapBg.style.width = MW + 'px';
+        mapBg.style.height = MH + 'px';
+
+        console.log(`Map dimensions set to: ${MW}x${MH}`);
+        console.log(`Image source: ${mapBg.src}`);
+
+        mapBg.onload = () => console.log("Map image loaded successfully");
+        mapBg.onerror = () => console.error("Failed to load map image");
 
         drawGrid();
         renderBuildings();
-        setupBuildToolbar();
-        setupMapEvents();
 
-        mapState.zoom = Math.min(cw / MW, ch / MH);
+        mapState.zoom = Math.min(cw / MW, ch / MH) * 1.2; // Start slightly zoomed in
         mapState.x = (cw - MW * mapState.zoom) / 2;
         mapState.y = (ch - MH * mapState.zoom) / 2;
+        console.log(`Initial view: zoom=${mapState.zoom}, x=${mapState.x}, y=${mapState.y}`);
         updateMapTransform();
     }
 
@@ -445,7 +472,7 @@
 
     function resetView() {
         const container = document.getElementById('mapContainer');
-        mapState.zoom = Math.min(container.clientWidth / MW, container.clientHeight / MH);
+        mapState.zoom = Math.min(container.clientWidth / MW, container.clientHeight / MH) * 1.2;
         mapState.x = (container.clientWidth - MW * mapState.zoom) / 2;
         mapState.y = (container.clientHeight - MH * mapState.zoom) / 2;
         updateMapTransform();
@@ -597,10 +624,12 @@
         });
         document.getElementById(name+'Tab').classList.add('active');
         const an = document.querySelector(`[data-tab="${name}"]`);
-        an.classList.add('active');
-        an.querySelector('span').classList.remove('text-gray-400');
-        an.querySelector('span').classList.add('text-amber-400');
-        if (name === 'base') setTimeout(() => { if(!document.getElementById('gridCanvas').width) initBase(); }, 50);
+        if (an) {
+            an.classList.add('active');
+            an.querySelector('span').classList.remove('text-gray-400');
+            an.querySelector('span').classList.add('text-amber-400');
+        }
+        if (name === 'base') setTimeout(() => { initBase(); }, 50);
     }
 
     function updateUI() {
@@ -638,4 +667,3 @@
 </script>
 </body>
 </html>
-
