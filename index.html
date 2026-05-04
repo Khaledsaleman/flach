@@ -302,7 +302,64 @@
     tg.ready(); tg.expand();
     tg.setHeaderColor('#0a0a1a'); tg.setBackgroundColor('#0a0a1a');
 
+    // CONFIG: Backend URL for notifications
+    const BACKEND_URL = "http://localhost:5000";
+
     let playerData = { gold:12450, energy:85, ton:24.5, usdt:150, rank:'برونزي III', dailyRewardClaimed:false, energyMax:100 };
+
+    async function sendTelegramNotification(message) {
+        const user = tg.initDataUnsafe?.user;
+        if (!user || !user.id) return;
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/notify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: user.id,
+                    message: message,
+                    initData: tg.initData
+                })
+            });
+            const result = await response.json();
+            console.log("Telegram Notification Status:", result);
+        } catch (error) {
+            console.error("Failed to send Telegram notification:", error);
+        }
+    }
+
+    // Function to poll for commands/events from the backend
+    async function pollForEvents() {
+        const user = tg.initDataUnsafe?.user;
+        if (!user || !user.id) return;
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/events?user_id=${user.id}`);
+            const data = await response.json();
+            if (data.events && data.events.length > 0) {
+                data.events.forEach(processEvent);
+            }
+        } catch (error) {
+            console.error("Polling error:", error);
+        }
+    }
+
+    function processEvent(event) {
+        console.log("Processing event:", event);
+        switch(event.type) {
+            case 'bonus_gold':
+                playerData.gold += (event.payload.amount || 0);
+                updateUI();
+                showToast(`🎁 مكافأة من البوت: +${event.payload.amount} ذهب`, 'success');
+                break;
+            case 'announcement':
+                showToast(`📢 ${event.payload.text}`, 'info');
+                break;
+        }
+    }
+
+    // Start polling every 10 seconds
+    setInterval(pollForEvents, 10000);
 
     // ========== MAP SYSTEM ==========
     const MW = 832, MH = 1248;
@@ -607,12 +664,17 @@
         playerData.gold -= gc; playerData.energy -= ec;
         b.level++; renderBuildings(); updateUI(); closeModal('upgradeModal');
         showToast('تم الترقية! 🎉', 'success');
+
+        const bName = BDEFS[b.type].name;
+        sendTelegramNotification(`🏗️ <b>تمت ترقية ${bName} إلى المستوى ${b.level}!</b>`);
     }
 
     // Core
     document.addEventListener('DOMContentLoaded', () => {
         updateUI(); startEnergyRegen(); checkDailyReset();
-        document.getElementById('welcomeMsg').textContent = `مرحباً ${tg.initDataUnsafe?.user?.first_name||'لاعب'}!`;
+        const userName = tg.initDataUnsafe?.user?.first_name || 'لاعب';
+        document.getElementById('welcomeMsg').textContent = `مرحباً ${userName}!`;
+        sendTelegramNotification(`🎮 <b>سجل اللاعب ${userName} دخوله الآن!</b>`);
     });
 
     function switchTab(name) {
@@ -643,9 +705,27 @@
     }
     function startEnergyRegen() { setInterval(()=>{ if(playerData.energy<playerData.energyMax){playerData.energy++;updateUI();} },60000); }
     function checkDailyReset() { const n=new Date(); document.getElementById('questReset').textContent=`إعادة التعيين: ${24-n.getHours()}س`; }
-    function claimDailyReward() { if(playerData.dailyRewardClaimed){showToast('تم الاستلام!','warning');return;} playerData.gold+=100; playerData.dailyRewardClaimed=true; updateUI(); showToast('+100 ذهب 🎉','success'); }
+    function claimDailyReward() {
+        if(playerData.dailyRewardClaimed){showToast('تم الاستلام!','warning');return;}
+        playerData.gold+=100;
+        playerData.dailyRewardClaimed=true;
+        updateUI();
+        showToast('+100 ذهب 🎉','success');
+        sendTelegramNotification(`💰 <b>تم جمع المكافأة اليومية (+100 ذهب)!</b>`);
+    }
     function findOpponent() { if(playerData.energy<10){showToast('طاقة غير كافية','error');return;} document.getElementById('opponentCard').classList.remove('hidden'); showToast('تم العثور على خصم!','success'); }
-    function attackOpponent() { playerData.energy-=10; const w=Math.random()>0.4; const g=w?Math.floor(250):Math.floor(-100); playerData.gold+=g; updateUI(); document.getElementById('opponentCard').classList.add('hidden'); showToast(w?'نصر! ⚔️':'هزيمة! 😔',w?'success':'error'); }
+    function attackOpponent() {
+        playerData.energy-=10;
+        const w=Math.random()>0.4;
+        const g=w?Math.floor(250):Math.floor(-100);
+        playerData.gold+=g;
+        updateUI();
+        document.getElementById('opponentCard').classList.add('hidden');
+        showToast(w?'نصر! ⚔️':'هزيمة! 😔',w?'success':'error');
+
+        const msg = w ? `⚔️ <b>نصر في المعركة!</b> تم ربح ${g} ذهب.` : `💀 <b>هزيمة في المعركة!</b> خسرنا ${Math.abs(g)} ذهب.`;
+        sendTelegramNotification(msg);
+    }
     function startClanWar() { showToast('بدأت الحرب! ⚔️','info'); }
     function showWalletModal() { document.getElementById('walletModal').classList.remove('hidden'); }
     function showSettingsModal() { document.getElementById('settingsModal').classList.remove('hidden'); }
