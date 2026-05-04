@@ -7,7 +7,7 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
-BACKEND_URL = "http://localhost:5000"
+BACKEND_URL = "http://127.0.0.1:5000"
 
 def send_message(chat_id, text, reply_markup=None):
     url = f"{API_URL}/sendMessage"
@@ -35,19 +35,18 @@ def handle_update(update):
 
     if text == "/start":
         welcome_text = (
-            "👋 <b>أهلاً بك في CryptoClash!</b>\n\n"
-            "ابدأ ببناء قاعدتك والمنافسة في عالم الكريبتو.\n"
-            "اضغط على الزر أدناه لفتح اللعبة."
+            "🏰 <b>مرحباً بك في عالم CryptoClash!</b>\n\n"
+            "الآن يمكنك بناء إمبراطوريتك، تطوير قاعدتك، والمنافسة في أقوى تحديات الكريبتو.\n\n"
+            "اضغط على الزر أدناه للدخول إلى اللعبة والبدء في المغامرة:"
         )
         reply_markup = {
             "inline_keyboard": [[
-                {"text": "🎮 فتح اللعبة", "web_app": {"url": "https://khaledsaleman.github.io/flach/"}}
+                {"text": "🎮 ابدأ اللعب الآن", "web_app": {"url": "https://khaledsaleman.github.io/flach/"}}
             ]]
         }
         send_message(chat_id, welcome_text, reply_markup)
 
     elif text == "/gift":
-        # Simulate triggering an in-game event via the backend
         try:
             response = requests.post(f"{BACKEND_URL}/trigger-event", json={
                 "user_id": user_id,
@@ -55,18 +54,18 @@ def handle_update(update):
                 "payload": {"amount": 1000}
             })
             if response.status_code == 200:
-                send_message(chat_id, "🎁 <b>تم إرسال هدية!</b> تفقد اللعبة الآن (+1000 ذهب).")
+                send_message(chat_id, "🎁 <b>مفاجأة!</b> تم إرسال 1000 ذهب إلى حسابك. استمتع بها في تطوير قاعدتك! 🎉")
             else:
-                send_message(chat_id, "❌ حدث خطأ أثناء إرسال الهدية.")
+                send_message(chat_id, "❌ عذراً، لا يمكن معالجة طلبك حالياً.")
         except Exception as e:
-            send_message(chat_id, f"❌ تعذر الاتصال بالخادم: {e}")
+            send_message(chat_id, "❌ خطأ في الاتصال بالسيرفر.")
 
 def main():
     if not BOT_TOKEN:
         print("TELEGRAM_BOT_TOKEN not found in .env")
         return
 
-    print("Bot polling started...")
+    print("Bot polling active...")
     last_update_id = 0
 
     while True:
