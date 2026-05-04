@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CryptoClash - لعبة الكريبتو</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fontsource/tajawal@5.0.15/400,500,700,800/index.css" rel="stylesheet">
+    <style>
+        * { font-family: 'Tajawal', sans-serif; box-sizing: border-box; margin:0; padding:0; }
+        .font-orbitron { font-weight: 800; letter-spacing: 1px; }
+        body { background: #0a0a1a; color: #e5e7eb; overflow: hidden; position: fixed; width: 100%; height: 100%; }
+        .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+        .glass-dark { background: rgba(0,0,0,0.5); backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,0.08); }
+        .glow-gold { box-shadow: 0 0 15px rgba(255,215,0,0.4); }
+        .glow-blue { box-shadow: 0 0 15px rgba(59,130,246,0.4); }
+        .glow-red { box-shadow: 0 0 15px rgba(239,68,68,0.4); }
+        .glow-purple { box-shadow: 0 0 15px rgba(147,51,234,0.4); }
+        .glow-green { box-shadow: 0 0 15px rgba(34,197,94,0.4); }
+        .btn-primary { background: linear-gradient(135deg,#f59e0b,#d97706); }
+        .btn-secondary { background: linear-gradient(135deg,#3b82f6,#1d4ed8); }
+        .btn-danger { background: linear-gradient(135deg,#ef4444,#b91c1c); }
+        .resource-bar { transition: width 0.5s ease-out; }
+        .nav-item.active { background: rgba(255,255,255,0.15); box-shadow: inset 0 2px 0 #f59e0b; }
+        @keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+        .modal-backdrop { background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
+        .toast-enter { animation: toastSlide 0.3s ease forwards; }
+        @keyframes toastSlide { from { transform:translateY(-20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+        .energy-bar { background: linear-gradient(90deg,#ef4444,#f59e0b,#22c55e); }
+        .scrollbar-hide::-webkit-scrollbar { display:none; }
+        .scrollbar-hide { -ms-overflow-style:none; scrollbar-width:none; }
+
+        /* ===== LAYOUT ===== */
+        #appLayout {
+            display: flex; flex-direction: column;
+            width: 100%; height: 100vh; max-width: 480px; margin: 0 auto;
+        }
+        #appHeader { flex-shrink: 0; z-index: 30; }
+        #centralArea {
+            flex: 1; position: relative; overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* ===== MAP ===== */
+        #mapContainer {
+            position: relative; overflow: hidden;
+            touch-action: none; cursor: grab;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        #mapContainer:active { cursor: grabbing; }
+
+        #mapWorld {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            background-color: #1a1a2e; /* Fallback background */
+        }
+
+        /* الصورة الأصلية - بدون أي تعديل */
+        #mapBg {
+            display: block;
+            user-select: none;
+            pointer-events: none;
+            width: 832px;
+            height: 1248px;
+            /* لا فلاتر، لا تعديل ألوان، لا قص - الصورة كما هي تماماً */
+        }
+
+        /* Grid فوق الصورة */
+        #gridCanvas {
+            position: absolute; top: 0; left: 0;
+            pointer-events: none;
+        }
+
+        #buildingsLayer { position: absolute; top: 0; left: 0; }
+
+        /* Buildings */
+        .base-building {
+            position: absolute;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            cursor: pointer; transition: transform 0.15s ease;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+            border: 2px solid rgba(255,255,255,0.25);
+            backdrop-filter: blur(2px);
+            user-select: none;
+        }
+        .base-building:active { transform: scale(0.92); }
+        .base-building .lvl {
+            position: absolute; top: -7px; right: -7px;
+            background: linear-gradient(135deg,#fbbf24,#f59e0b); color: #000;
+            width: 18px; height: 18px; border-radius: 50%;
+            font-size: 10px; font-weight: 900;
+            display: flex; align-items: center; justify-content: center;
+            border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+        }
+        .base-building .icon { font-size: 22px; line-height: 1; }
+        .base-building .bname {
+            font-size: 8px; margin-top: 2px; color: #fff;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            white-space: nowrap; font-weight: 700;
+        }
+
+        #buildGhost {
+            display: none; position: absolute; pointer-events: none; z-index: 50;
+            border-radius: 8px;
+        }
+
+        /* Controls */
+        .zoom-controls {
+            position: absolute; top: 10px; right: 10px;
+            display: flex; flex-direction: column; gap: 6px; z-index: 15;
+        }
+        .zoom-btn {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15);
+            color: #fff; font-size: 18px;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+        .zoom-btn:active { background: rgba(255,255,255,0.2); }
+
+        #toggleBuildBtn {
+            position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+            z-index: 30; padding: 10px 24px; border-radius: 24px;
+            font-size: 13px; font-weight: 700; color: #fff;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4); transition: all 0.3s ease;
+        }
+
+        #buildToolbar {
+            position: absolute; bottom: 64px; left: 12px; right: 12px;
+            background: rgba(0,0,0,0.88); backdrop-filter: blur(16px);
+            padding: 10px; border-radius: 14px;
+            display: flex; gap: 8px; overflow-x: auto; z-index: 25;
+            transform: translateY(140%);
+            transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        #buildToolbar.active { transform: translateY(0); }
+        .build-btn {
+            flex: 0 0 auto; width: 62px; height: 70px;
+            background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .build-btn.active { background: rgba(34,197,94,0.25); border-color: #22c55e; }
+        .build-btn .price { font-size: 9px; color: #fbbf24; margin-top: 2px; font-weight: 700; }
+        .build-btn .btype { font-size: 8px; color: rgba(255,255,255,0.6); margin-top: 1px; }
+
+        #cellInfo {
+            position: absolute; bottom: 110px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);
+            padding: 6px 14px; border-radius: 16px; z-index: 20;
+            font-size: 11px; color: #fff;
+            transition: transform 0.3s ease, opacity 0.3s ease; opacity: 0;
+            border: 1px solid rgba(255,255,255,0.1); white-space: nowrap; pointer-events: none;
+        }
+        #cellInfo.visible { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        /* Tabs */
+        .tab-content { display: none; width: 100%; height: 100%; }
+        .tab-content.active { display: flex; flex-direction: column; }
+        #baseTab.active { display: flex; flex-direction: column; }
+        .scroll-content { flex: 1; overflow-y: auto; padding-bottom: 20px; }
+
+        /* Bottom Nav */
+        #bottomNav { flex-shrink: 0; z-index: 30; }
+    </style>
+</head>
+<body>
+
+<div id="appLayout">
+
+    <!-- HEADER -->
+    <header id="appHeader" class="glass-dark px-3 py-2.5">
+        <div class="flex items-center justify-between mb-1.5">
+            <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center font-bold text-white text-xs">C</div>
+                <div>
+                    <div class="font-orbitron text-[11px] text-amber-400">CryptoClash</div>
+                    <div class="text-[9px] text-gray-400" id="playerRank">الرتبة: برونزي III</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <button onclick="showWalletModal()" class="p-1 rounded glass hover:bg-white/10"><svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg></button>
+                <button onclick="showSettingsModal()" class="p-1 rounded glass hover:bg-white/10"><svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button>
+            </div>
+        </div>
+        <div class="grid grid-cols-4 gap-1.5 mb-1.5">
+            <div class="glass rounded-lg p-1 text-center"><div class="flex items-center justify-center gap-0.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 flex items-center justify-center text-[7px]">ذ</span><span class="text-[8px] text-gray-400">ذهب</span></div><div class="font-orbitron text-[9px] text-amber-400" id="goldAmount">12,450</div></div>
+            <div class="glass rounded-lg p-1 text-center"><div class="flex items-center justify-center gap-0.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 flex items-center justify-center text-[7px]">ط</span><span class="text-[8px] text-gray-400">طاقة</span></div><div class="font-orbitron text-[9px] text-emerald-400" id="energyAmount">85</div></div>
+            <div class="glass rounded-lg p-1 text-center"><div class="flex items-center justify-center gap-0.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500 flex items-center justify-center text-[7px]">T</span><span class="text-[8px] text-gray-400">TON</span></div><div class="font-orbitron text-[9px] text-blue-400" id="tonAmount">24.5</div></div>
+            <div class="glass rounded-lg p-1 text-center"><div class="flex items-center justify-center gap-0.5"><span class="w-2.5 h-2.5 rounded-full bg-green-500 flex items-center justify-center text-[7px]">U</span><span class="text-[8px] text-gray-400">USDT</span></div><div class="font-orbitron text-[9px] text-green-400" id="usdtAmount">150</div></div>
+        </div>
+        <div>
+            <div class="flex justify-between text-[8px] mb-0.5"><span class="text-gray-400">⚡ الطاقة</span><span class="text-amber-400" id="energyText">85/100</span></div>
+            <div class="h-1 bg-gray-700 rounded-full overflow-hidden"><div id="energyBar" class="resource-bar energy-bar h-full rounded-full" style="width:85%"></div></div>
+        </div>
+    </header>
+
+    <!-- CENTRAL AREA -->
+    <div id="centralArea">
+
+        <!-- Home Tab -->
+        <div id="homeTab" class="tab-content active">
+            <div class="scroll-content p-3">
+                <div class="glass rounded-xl p-3 mb-3 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30">
+                    <div class="flex items-center gap-2"><span class="text-3xl">👋</span><div><h2 class="font-orbitron text-amber-400 text-base">مرحباً</h2><p class="text-sm text-gray-300" id="welcomeMsg">ابدأ مغامرتك!</p></div></div>
+                </div>
+                <div class="glass rounded-xl p-3 mb-3 glow-gold">
+                    <div class="flex items-center justify-between mb-2"><h2 class="font-orbitron text-amber-400 text-sm">المهام اليومية</h2><span class="text-[10px] text-gray-400" id="questReset">إعادة التعيين: 8س</span></div>
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between p-1.5 bg-white/5 rounded-lg"><div class="flex items-center gap-1.5"><span class="text-base">⚔️</span><span class="text-sm">فوز في 3 معارك</span></div><span class="text-[10px] text-amber-400">2/3</span></div>
+                        <div class="flex items-center justify-between p-1.5 bg-white/5 rounded-lg"><div class="flex items-center gap-1.5"><span class="text-base">💰</span><span class="text-sm">جمع 1000 ذهب</span></div><span class="text-[10px] text-amber-400">750/1000</span></div>
+                    </div>
+                    <button onclick="claimDailyReward()" class="mt-2 w-full btn-primary py-2 rounded-lg text-sm font-medium text-black">مكافأة يومية</button>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <button onclick="switchTab('base')" class="glass rounded-xl p-3 text-right hover:bg-white/10 transition glow-blue"><span class="text-xl mb-1 block">🏰</span><div class="font-orbitron text-sm text-blue-400">قاعدتي</div></button>
+                    <button onclick="switchTab('attack')" class="glass rounded-xl p-3 text-right hover:bg-white/10 transition glow-red"><span class="text-xl mb-1 block">⚔️</span><div class="font-orbitron text-sm text-red-400">هجوم</div></button>
+                    <button onclick="switchTab('clan')" class="glass rounded-xl p-3 text-right hover:bg-white/10 transition glow-purple"><span class="text-xl mb-1 block">🛡️</span><div class="font-orbitron text-sm text-purple-400">العشيرة</div></button>
+                    <button onclick="switchTab('market')" class="glass rounded-xl p-3 text-right hover:bg-white/10 transition glow-green"><span class="text-xl mb-1 block">🏪</span><div class="font-orbitron text-sm text-green-400">السوق</div></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Base Tab -->
+        <div id="baseTab" class="tab-content">
+            <div id="mapContainer">
+                <div id="mapWorld">
+                    <!-- الصورة الأصلية كما هي تماماً بدون أي تعديل -->
+                    <img id="mapBg" src="map_bg.jpg" alt="Base Map">
+                    <canvas id="gridCanvas"></canvas>
+                    <div id="buildingsLayer"></div>
+                    <div id="buildGhost"></div>
+                </div>
+            </div>
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoomMap(1.25)">+</button>
+                <button class="zoom-btn" onclick="zoomMap(0.8)">−</button>
+                <button class="zoom-btn" onclick="resetView()" style="font-size:13px;">⟳</button>
+            </div>
+            <button id="toggleBuildBtn" onclick="toggleBuildMode()">🔨 بناء جديد</button>
+            <div id="buildToolbar"></div>
+            <div id="cellInfo">المؤشر على: خلية قابلة للبناء</div>
+        </div>
+
+        <!-- Attack Tab -->
+        <div id="attackTab" class="tab-content">
+            <div class="scroll-content p-3">
+                <div class="glass rounded-xl p-4 mb-4"><div class="text-center mb-4"><p class="text-sm text-gray-400 mb-3">ابحث عن خصم</p><button onclick="findOpponent()" class="btn-danger px-8 py-3 rounded-lg font-medium text-white">بحث عن مباراة</button></div><div id="opponentCard" class="hidden"><div class="flex items-center gap-3 mb-4 p-3 bg-white/5 rounded-lg"><div class="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center text-xl">🐉</div><div class="flex-1"><div class="font-medium text-white" id="opponentName">dragonSlayer</div></div></div><div class="flex gap-3"><button onclick="attackOpponent()" class="flex-1 btn-danger py-3 rounded-lg font-medium text-white">هجوم سريع</button></div></div></div>
+            </div>
+        </div>
+
+        <!-- Clan Tab -->
+        <div id="clanTab" class="tab-content">
+            <div class="scroll-content p-3">
+                <h1 class="font-orbitron text-lg text-purple-400 mb-3">🛡️ العشيرة: CyberKnights</h1>
+                <div class="glass rounded-xl p-4 mb-4"><button onclick="startClanWar()" class="w-full btn-secondary py-2 rounded-lg text-sm font-medium text-white">بدء حرب عشائر</button></div>
+            </div>
+        </div>
+
+        <!-- Market Tab -->
+        <div id="marketTab" class="tab-content">
+            <div class="scroll-content p-3">
+                <h1 class="font-orbitron text-lg text-green-400 mb-3">🏪 السوق</h1>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="glass rounded-xl overflow-hidden"><div class="h-28 bg-gradient-to-br from-amber-600 to-orange-800 flex items-center justify-center"><span class="text-4xl">🦸‍️</span></div><div class="p-3"><h3 class="font-orbitron text-sm text-white mb-1">الظلال القاتل</h3><div class="flex items-center justify-between"><span class="text-xs text-blue-400">2.5 TON</span><button onclick="showToast('تم الشراء!','success')" class="px-3 py-1 rounded-lg bg-green-500/20 text-green-300 text-xs">شراء</button></div></div></div>
+                    <div class="glass rounded-xl overflow-hidden"><div class="h-28 bg-gradient-to-br from-purple-600 to-indigo-800 flex items-center justify-center"><span class="text-4xl">🛡️</span></div><div class="p-3"><h3 class="font-orbitron text-sm text-white mb-1">درع التنين</h3><div class="flex items-center justify-between"><span class="text-xs text-green-400">50 USDT</span><button onclick="showToast('تم الشراء!','success')" class="px-3 py-1 rounded-lg bg-green-500/20 text-green-300 text-xs">شراء</button></div></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <nav id="bottomNav" class="glass-dark">
+        <div class="flex justify-around items-center py-2.5">
+            <button onclick="switchTab('home')" class="nav-item active flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="home"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg><span class="text-[9px] text-gray-400">الرئيسية</span></button>
+            <button onclick="switchTab('base')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="base"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg><span class="text-[9px] text-gray-400">القاعدة</span></button>
+            <button onclick="switchTab('attack')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="attack"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg><span class="text-[9px] text-gray-400">هجوم</span></button>
+            <button onclick="switchTab('clan')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="clan"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg><span class="text-[9px] text-gray-400">العشيرة</span></button>
+            <button onclick="switchTab('market')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="market"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg><span class="text-[9px] text-gray-400">السوق</span></button>
+        </div>
+    </nav>
+</div>
+
+<!-- Modals -->
+<div id="upgradeModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center"><div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5" style="animation:slideUp 0.3s ease"><div class="flex items-center justify-between mb-3"><h3 class="font-orbitron text-lg text-amber-400" id="upgradeTitle">ترقية</h3><button onclick="closeModal('upgradeModal')" class="p-2 rounded-lg hover:bg-white/10">✕</button></div><div class="space-y-3"><div class="flex items-center gap-4"><span class="text-4xl" id="upgradeIcon">⛏️</span><div><div class="text-sm text-gray-400">المستوى الحالي</div><div class="font-orbitron text-2xl text-white" id="upgradeCurrentLevel">5</div></div><div><div class="text-sm text-gray-400">المستوى التالي</div><div class="font-orbitron text-2xl text-amber-400" id="upgradeNextLevel">6</div></div></div><div class="p-3 bg-white/5 rounded-lg"><div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center text-xs">ذ</span><span class="font-orbitron text-amber-400" id="upgradeGoldCost">5,000</span></div><div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-xs">ط</span><span class="font-orbitron text-emerald-400" id="upgradeEnergyCost">20</span></div></div></div><button onclick="performUpgrade()" class="w-full btn-primary py-3 rounded-lg font-medium text-black">ترقية الآن</button></div></div></div>
+
+<div id="walletModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center"><div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5" style="animation:slideUp 0.3s ease"><div class="flex items-center justify-between mb-3"><h3 class="font-orbitron text-lg text-amber-400">💰 المحفظة</h3><button onclick="closeModal('walletModal')" class="p-2 rounded-lg hover:bg-white/10">✕</button></div><div class="space-y-3"><div class="p-3 bg-white/5 rounded-lg"><div class="text-sm text-gray-400">محفظة TON</div><div class="font-orbitron text-sm text-blue-400">24.5 TON</div></div><div class="p-3 bg-white/5 rounded-lg"><div class="text-sm text-gray-400">محفظة USDT</div><div class="font-orbitron text-sm text-green-400">150 USDT</div></div></div></div></div>
+
+<div id="settingsModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center"><div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5" style="animation:slideUp 0.3s ease"><div class="flex items-center justify-between mb-3"><h3 class="font-orbitron text-lg text-gray-300">⚙️ الإعدادات</h3><button onclick="closeModal('settingsModal')" class="p-2 rounded-lg hover:bg-white/10">✕</button></div><div class="space-y-3"><div class="flex items-center justify-between p-3 bg-white/5 rounded-lg"><span>الإشعارات</span><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" checked><div class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div></label></div><button onclick="closeModal('settingsModal')" class="w-full btn-danger py-2 rounded-lg text-sm font-medium text-white">إغلاق</button></div></div></div>
+
+<div id="toastContainer" class="fixed top-4 left-4 right-4 max-w-md mx-auto z-50 space-y-2 pointer-events-none"></div>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.ready(); tg.expand();
+    tg.setHeaderColor('#0a0a1a'); tg.setBackgroundColor('#0a0a1a');
+
+    let playerData = { gold:12450, energy:85, ton:24.5, usdt:150, rank:'برونزي III', dailyRewardClaimed:false, energyMax:100 };
+
+    // ========== MAP SYSTEM ==========
+    const MW = 832, MH = 1248;
+    const COLS = 20, ROWS = 25;
+    const GS = MW / COLS;
+    const blockmap = [];
+
+    function initBlockmap() {
+        for (let r = 0; r < ROWS; r++) {
+            blockmap[r] = [];
+            for (let c = 0; c < COLS; c++) blockmap[r][c] = false;
+        }
+        // حواف محجوزة (أشجار على الأطراف)
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < 2; c++) blockmap[r][c] = true;
+            for (let c = COLS-2; c < COLS; c++) blockmap[r][c] = true;
+        }
+        for (let c = 0; c < COLS; c++) {
+            for (let r = 0; r < 3; r++) blockmap[r][c] = true;
+            for (let r = ROWS-3; r < ROWS; r++) blockmap[r][c] = true;
+        }
+        // نهر على اليسار
+        for (let r = 3; r <= 9; r++) { blockmap[r][2] = true; blockmap[r][3] = true; }
+        for (let r = 18; r <= 23; r++) { blockmap[r][2] = true; }
+        // صخور متفرقة
+        const rocks = [{r:5,c:5},{r:4,c:12},{r:6,c:15},{r:8,c:7},{r:10,c:10},{r:11,c:3},{r:12,c:16},{r:14,c:8},{r:15,c:13},{r:17,c:5},{r:18,c:11},{r:13,c:4},{r:7,c:11},{r:16,c:7},{r:10,c:14},{r:14,c:12},{r:20,c:9},{r:21,c:6},{r:21,c:14},{r:8,c:15},{r:11,c:6},{r:15,c:10},{r:9,c:17},{r:19,c:11},{r:12,c:9}];
+        rocks.forEach(r => { if(r.r>=0&&r.r<ROWS&&r.c>=0&&r.c<COLS) blockmap[r.r][r.c]=true; });
+    }
+
+    function drawGrid() {
+        const canvas = document.getElementById('gridCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, MW, MH);
+        // خطوط الشبكة - شفافة لا تخفي الصورة
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x <= MW; x += GS) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,MH); ctx.stroke(); }
+        for (let y = 0; y <= MH; y += GS) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(MW,y); ctx.stroke(); }
+        // ظل خفيف على الخلايا المحجوزة
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                if (blockmap[r][c]) {
+                    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                    ctx.fillRect(c*GS+0.5, r*GS+0.5, GS-1, GS-1);
+                }
+            }
+        }
+    }
+
+    const BDEFS = {
+        townhall: {name:'قاعة البلدة',icon:'🏛️',w:80,h:80,color:'#6366f1',gold:10000,energy:50},
+        goldMine: {name:'منجم ذهب',icon:'⛏️',w:80,h:80,color:'#d97706',gold:5000,energy:20},
+        energyPlant: {name:'محطة طاقة',icon:'🔋',w:80,h:80,color:'#059669',gold:3000,energy:15},
+        cannon: {name:'مدفع',icon:'💣',w:80,h:80,color:'#dc2626',gold:4000,energy:25},
+        archerTower: {name:'برج رماة',icon:'🏹',w:80,h:80,color:'#991b1b',gold:3500,energy:20},
+        barracks: {name:'ثكنات',icon:'⚔️',w:80,h:80,color:'#2563eb',gold:6000,energy:30},
+        storage: {name:'مخزن',icon:'📦',w:80,h:80,color:'#7c3aed',gold:3500,energy:20},
+        wall: {name:'جدار',icon:'🧱',w:40,h:40,color:'#6b7280',gold:1500,energy:10}
+    };
+
+    let buildings = [
+        {id:'b1',type:'townhall',col:9,row:11,level:7},
+        {id:'b2',type:'goldMine',col:7,row:9,level:5},
+        {id:'b3',type:'energyPlant',col:11,row:9,level:3},
+        {id:'b4',type:'cannon',col:7,row:13,level:4},
+        {id:'b5',type:'archerTower',col:11,row:13,level:5},
+        {id:'b6',type:'storage',col:8,row:15,level:6},
+        {id:'b7',type:'barracks',col:10,row:15,level:4},
+    ];
+
+    let mapState = {x:0, y:0, zoom:1, dragging:false, sx:0, sy:0, smx:0, smy:0};
+    let buildMode = false, selectedBuildType = null;
+
+    let eventsSetup = false;
+    function initBase() {
+        console.log("Initializing Base Map...");
+        if (!eventsSetup) {
+            initBlockmap();
+            setupBuildToolbar();
+            setupMapEvents();
+            eventsSetup = true;
+        }
+
+        const container = document.getElementById('mapContainer');
+        const centralArea = document.getElementById('centralArea');
+        const availW = centralArea.clientWidth || 400;
+        const availH = centralArea.clientHeight || 600;
+        console.log(`Available dimensions: ${availW}x${availH}`);
+
+        // نسبة 2:3 للهاتف
+        let cw, ch;
+        if (availW / availH > 2/3) {
+            ch = availH - 20;
+            cw = ch * (2/3);
+        } else {
+            cw = availW - 20;
+            ch = cw * (3/2);
+        }
+        cw = Math.min(cw, availW - 10);
+        ch = Math.min(ch, availH - 10);
+
+        container.style.width = cw + 'px';
+        container.style.height = ch + 'px';
+
+        // Canvas يطابق حجم الصورة الأصلية
+        const gridCanvas = document.getElementById('gridCanvas');
+        gridCanvas.width = MW;
+        gridCanvas.height = MH;
+
+        const mapWorld = document.getElementById('mapWorld');
+        const mapBg = document.getElementById('mapBg');
+
+        mapWorld.style.width = MW + 'px';
+        mapWorld.style.height = MH + 'px';
+        mapBg.style.width = MW + 'px';
+        mapBg.style.height = MH + 'px';
+
+        console.log(`Map dimensions set to: ${MW}x${MH}`);
+        console.log(`Image source: ${mapBg.src}`);
+
+        mapBg.onload = () => console.log("Map image loaded successfully");
+        mapBg.onerror = () => console.error("Failed to load map image");
+
+        drawGrid();
+        renderBuildings();
+
+        mapState.zoom = Math.min(cw / MW, ch / MH) * 1.2; // Start slightly zoomed in
+        mapState.x = (cw - MW * mapState.zoom) / 2;
+        mapState.y = (ch - MH * mapState.zoom) / 2;
+        console.log(`Initial view: zoom=${mapState.zoom}, x=${mapState.x}, y=${mapState.y}`);
+        updateMapTransform();
+    }
+
+    function renderBuildings() {
+        const layer = document.getElementById('buildingsLayer');
+        layer.innerHTML = '';
+        buildings.forEach(b => {
+            const def = BDEFS[b.type];
+            if (!def) return;
+            const el = document.createElement('div');
+            el.className = 'base-building';
+            el.style.left = (b.col * GS) + 'px';
+            el.style.top = (b.row * GS) + 'px';
+            el.style.width = (b.type === 'wall' ? GS : def.w) + 'px';
+            el.style.height = (b.type === 'wall' ? GS : def.h) + 'px';
+            el.style.background = `linear-gradient(145deg, ${def.color}, ${def.color}cc)`;
+            el.style.border = `2px solid ${def.color}`;
+            el.innerHTML = `<div class="lvl">${b.level}</div><div class="icon">${def.icon}</div><div class="bname">${def.name}</div>`;
+            el.onclick = (e) => { e.stopPropagation(); openUpgradePanel(b); };
+            layer.appendChild(el);
+        });
+    }
+
+    function updateMapTransform() {
+        document.getElementById('mapWorld').style.transform = `translate(${mapState.x}px, ${mapState.y}px) scale(${mapState.zoom})`;
+    }
+
+    function zoomMap(factor) {
+        const container = document.getElementById('mapContainer');
+        const cx = container.clientWidth / 2, cy = container.clientHeight / 2;
+        const oldZoom = mapState.zoom;
+        mapState.zoom = Math.max(0.4, Math.min(2.5, mapState.zoom * factor));
+        mapState.x = cx - (cx - mapState.x) * (mapState.zoom / oldZoom);
+        mapState.y = cy - (cy - mapState.y) * (mapState.zoom / oldZoom);
+        updateMapTransform();
+    }
+
+    function resetView() {
+        const container = document.getElementById('mapContainer');
+        mapState.zoom = Math.min(container.clientWidth / MW, container.clientHeight / MH) * 1.2;
+        mapState.x = (container.clientWidth - MW * mapState.zoom) / 2;
+        mapState.y = (container.clientHeight - MH * mapState.zoom) / 2;
+        updateMapTransform();
+    }
+
+    function setupMapEvents() {
+        const container = document.getElementById('mapContainer');
+        const ghost = document.getElementById('buildGhost');
+        const cellInfo = document.getElementById('cellInfo');
+
+        container.addEventListener('pointerdown', e => {
+            if (e.target.closest('.base-building') || e.target.closest('.zoom-btn') || e.target.closest('#toggleBuildBtn')) return;
+            mapState.dragging = true;
+            mapState.sx = e.clientX; mapState.sy = e.clientY;
+            mapState.smx = mapState.x; mapState.smy = mapState.y;
+        });
+
+        container.addEventListener('pointermove', e => {
+            if (mapState.dragging) {
+                mapState.x = mapState.smx + (e.clientX - mapState.sx);
+                mapState.y = mapState.smy + (e.clientY - mapState.sy);
+                updateMapTransform();
+                return;
+            }
+            if (buildMode && selectedBuildType) {
+                const rect = container.getBoundingClientRect();
+                const mx = (e.clientX - rect.left - mapState.x) / mapState.zoom;
+                const my = (e.clientY - rect.top - mapState.y) / mapState.zoom;
+                const col = Math.floor(mx / GS), row = Math.floor(my / GS);
+                const def = BDEFS[selectedBuildType];
+                const bCol = def.w / GS, bRow = def.h / GS;
+                if (col >= 0 && row >= 0 && col + bCol <= COLS && row + bRow <= ROWS) {
+                    const valid = isAreaBuildable(col, row, bCol, bRow);
+                    ghost.style.display = 'block';
+                    ghost.style.left = (col*GS) + 'px';
+                    ghost.style.top = (row*GS) + 'px';
+                    ghost.style.width = (bCol*GS) + 'px';
+                    ghost.style.height = (bRow*GS) + 'px';
+                    ghost.style.borderColor = valid ? '#22c55e' : '#ef4444';
+                    ghost.style.background = valid ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.25)';
+                    cellInfo.textContent = valid ? '✅ خلية صالحة للبناء' : '❌ غير صالحة';
+                    cellInfo.style.color = valid ? '#4ade80' : '#f87171';
+                    cellInfo.classList.add('visible');
+                } else {
+                    ghost.style.display = 'none';
+                    cellInfo.classList.remove('visible');
+                }
+            }
+        });
+
+        container.addEventListener('pointerup', e => {
+            mapState.dragging = false;
+            if (buildMode && selectedBuildType && ghost.style.display === 'block') {
+                const col = parseInt(ghost.style.left) / GS;
+                const row = parseInt(ghost.style.top) / GS;
+                const def = BDEFS[selectedBuildType];
+                const bCol = def.w / GS, bRow = def.h / GS;
+                if (isAreaBuildable(col, row, bCol, bRow)) {
+                    if (playerData.gold >= def.gold) {
+                        playerData.gold -= def.gold;
+                        buildings.push({id:'b'+Date.now(), type:selectedBuildType, col, row, level:1});
+                        renderBuildings(); updateUI();
+                        showToast('تم بناء ' + def.name + ' 🎉', 'success');
+                    } else { showToast('ذهب غير كافٍ!', 'error'); }
+                } else { showToast('لا يمكن البناء هنا', 'error'); }
+            }
+        });
+        container.addEventListener('contextmenu', e => e.preventDefault());
+    }
+
+    function isAreaBuildable(col, row, bCol, bRow) {
+        for (let r = 0; r < bRow; r++) {
+            for (let c = 0; c < bCol; c++) {
+                const cr = row+r, cc = col+c;
+                if (cr<0||cr>=ROWS||cc<0||cc>=COLS) return false;
+                if (blockmap[cr][cc]) return false;
+                for (const b of buildings) {
+                    const d = BDEFS[b.type];
+                    const bc = d.w/GS, br = d.h/GS;
+                    if (cc>=b.col&&cc<b.col+bc&&cr>=b.row&&cr<b.row+br) return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    function setupBuildToolbar() {
+        const tb = document.getElementById('buildToolbar');
+        tb.innerHTML = '';
+        Object.keys(BDEFS).forEach(type => {
+            const def = BDEFS[type];
+            const btn = document.createElement('div');
+            btn.className = 'build-btn';
+            btn.innerHTML = `<span class="text-xl">${def.icon}</span><div class="price text-xs">${def.gold.toLocaleString()} ذ</div><div class="btype">${def.name}</div>`;
+            btn.onclick = (e) => { e.stopPropagation(); document.querySelectorAll('.build-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); selectedBuildType=type; };
+            tb.appendChild(btn);
+        });
+    }
+
+    function toggleBuildMode() {
+        buildMode = !buildMode;
+        document.getElementById('buildToolbar').classList.toggle('active', buildMode);
+        const btn = document.getElementById('toggleBuildBtn');
+        btn.textContent = buildMode ? '❌ إلغاء' : '🔨 بناء جديد';
+        btn.style.background = buildMode ? 'linear-gradient(to right,#ef4444,#b91c1c)' : 'linear-gradient(to right,#22c55e,#15803d)';
+        if (!buildMode) {
+            document.getElementById('buildGhost').style.display = 'none';
+            document.querySelectorAll('.build-btn').forEach(b=>b.classList.remove('active'));
+            selectedBuildType = null;
+            document.getElementById('cellInfo').classList.remove('visible');
+        }
+    }
+
+    function openUpgradePanel(b) {
+        const def = BDEFS[b.type];
+        document.getElementById('upgradeTitle').textContent = 'ترقية ' + def.name;
+        document.getElementById('upgradeIcon').textContent = def.icon;
+        document.getElementById('upgradeCurrentLevel').textContent = b.level;
+        document.getElementById('upgradeNextLevel').textContent = b.level + 1;
+        const gc = Math.round(def.gold*(1+b.level*0.5)), ec = Math.round(def.energy*(1+b.level*0.3));
+        document.getElementById('upgradeGoldCost').textContent = gc.toLocaleString();
+        document.getElementById('upgradeEnergyCost').textContent = ec;
+        document.getElementById('upgradeModal').classList.remove('hidden');
+        window._selBld = b;
+    }
+
+    function performUpgrade() {
+        const b = window._selBld; if (!b) return;
+        const gc = parseInt(document.getElementById('upgradeGoldCost').textContent.replace(/,/g,''));
+        const ec = parseInt(document.getElementById('upgradeEnergyCost').textContent);
+        if (playerData.gold < gc || playerData.energy < ec) { showToast('موارد غير كافية!','error'); return; }
+        playerData.gold -= gc; playerData.energy -= ec;
+        b.level++; renderBuildings(); updateUI(); closeModal('upgradeModal');
+        showToast('تم الترقية! 🎉', 'success');
+    }
+
+    // Core
+    document.addEventListener('DOMContentLoaded', () => {
+        updateUI(); startEnergyRegen(); checkDailyReset();
+        document.getElementById('welcomeMsg').textContent = `مرحباً ${tg.initDataUnsafe?.user?.first_name||'لاعب'}!`;
+    });
+
+    function switchTab(name) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => {
+            n.classList.remove('active');
+            n.querySelector('span').classList.remove('text-amber-400');
+            n.querySelector('span').classList.add('text-gray-400');
+        });
+        document.getElementById(name+'Tab').classList.add('active');
+        const an = document.querySelector(`[data-tab="${name}"]`);
+        if (an) {
+            an.classList.add('active');
+            an.querySelector('span').classList.remove('text-gray-400');
+            an.querySelector('span').classList.add('text-amber-400');
+        }
+        if (name === 'base') setTimeout(() => { initBase(); }, 50);
+    }
+
+    function updateUI() {
+        document.getElementById('goldAmount').textContent = playerData.gold.toLocaleString();
+        document.getElementById('energyAmount').textContent = playerData.energy;
+        document.getElementById('tonAmount').textContent = playerData.ton;
+        document.getElementById('usdtAmount').textContent = playerData.usdt;
+        document.getElementById('playerRank').textContent = `الرتبة: ${playerData.rank}`;
+        document.getElementById('energyText').textContent = `${playerData.energy}/${playerData.energyMax}`;
+        document.getElementById('energyBar').style.width = `${(playerData.energy/playerData.energyMax)*100}%`;
+    }
+    function startEnergyRegen() { setInterval(()=>{ if(playerData.energy<playerData.energyMax){playerData.energy++;updateUI();} },60000); }
+    function checkDailyReset() { const n=new Date(); document.getElementById('questReset').textContent=`إعادة التعيين: ${24-n.getHours()}س`; }
+    function claimDailyReward() { if(playerData.dailyRewardClaimed){showToast('تم الاستلام!','warning');return;} playerData.gold+=100; playerData.dailyRewardClaimed=true; updateUI(); showToast('+100 ذهب 🎉','success'); }
+    function findOpponent() { if(playerData.energy<10){showToast('طاقة غير كافية','error');return;} document.getElementById('opponentCard').classList.remove('hidden'); showToast('تم العثور على خصم!','success'); }
+    function attackOpponent() { playerData.energy-=10; const w=Math.random()>0.4; const g=w?Math.floor(250):Math.floor(-100); playerData.gold+=g; updateUI(); document.getElementById('opponentCard').classList.add('hidden'); showToast(w?'نصر! ⚔️':'هزيمة! 😔',w?'success':'error'); }
+    function startClanWar() { showToast('بدأت الحرب! ⚔️','info'); }
+    function showWalletModal() { document.getElementById('walletModal').classList.remove('hidden'); }
+    function showSettingsModal() { document.getElementById('settingsModal').classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    function showToast(msg, type='info') {
+        const c=document.getElementById('toastContainer');
+        const t=document.createElement('div');
+        const cols={success:'bg-green-500/20 border-green-500/50 text-green-300',error:'bg-red-500/20 border-red-500/50 text-red-300',warning:'bg-amber-500/20 border-amber-500/50 text-amber-300',info:'bg-blue-500/20 border-blue-500/50 text-blue-300'};
+        t.className=`p-3 rounded-lg border ${cols[type]} backdrop-blur-sm toast-enter`;
+        t.textContent=msg; c.appendChild(t);
+        setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(()=>t.remove(),300);},3000);
+    }
+
+    document.querySelectorAll('.modal-backdrop').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.add('hidden'); }));
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => { const now = Date.now(); if(now - lastTouchEnd <= 300) e.preventDefault(); lastTouchEnd = now; }, false);
+    window.addEventListener('resize', () => { if(document.getElementById('baseTab').classList.contains('active')) setTimeout(initBase, 100); });
+</script>
+</body>
+</html>
