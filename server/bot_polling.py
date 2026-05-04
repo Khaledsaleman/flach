@@ -35,15 +35,13 @@ def handle_update(update):
 
     if text == "/start":
         welcome_text = (
-            "🚀 <b>تم تحديث CryptoClash! (v2.1)</b>\n\n"
-            "• تم تفعيل نظام الإدارة للأدمن.\n"
-            "• تم إصلاح رابط اللعبة.\n"
-            "• يمكنك الآن طلب هدايا عبر /gift.\n\n"
-            "اضغط على الزر أدناه للبدء:"
+            "🏰 <b>مرحباً بك في عالم CryptoClash!</b>\n\n"
+            "الآن يمكنك بناء إمبراطوريتك، تطوير قاعدتك، والمنافسة في أقوى تحديات الكريبتو.\n\n"
+            "اضغط على الزر أدناه للدخول إلى اللعبة والبدء في المغامرة:"
         )
         reply_markup = {
             "inline_keyboard": [[
-                {"text": "🎮 فتح اللعبة", "web_app": {"url": "https://khaledsaleman.github.io/flach/"}}
+                {"text": "🎮 ابدأ اللعب الآن", "web_app": {"url": "https://khaledsaleman.github.io/flach/"}}
             ]]
         }
         send_message(chat_id, welcome_text, reply_markup)
@@ -56,18 +54,18 @@ def handle_update(update):
                 "payload": {"amount": 1000}
             })
             if response.status_code == 200:
-                send_message(chat_id, "🎁 <b>تم إرسال هدية!</b> تفقد اللعبة الآن (+1000 ذهب).")
+                send_message(chat_id, "🎁 <b>مفاجأة!</b> تم إرسال 1000 ذهب إلى حسابك. استمتع بها في تطوير قاعدتك! 🎉")
             else:
-                send_message(chat_id, "❌ حدث خطأ أثناء إرسال الهدية.")
+                send_message(chat_id, "❌ عذراً، لا يمكن معالجة طلبك حالياً.")
         except Exception as e:
-            send_message(chat_id, f"❌ تعذر الاتصال بالخادم: {e}")
+            send_message(chat_id, "❌ خطأ في الاتصال بالسيرفر.")
 
 def main():
     if not BOT_TOKEN:
         print("TELEGRAM_BOT_TOKEN not found in .env")
         return
 
-    print("Bot polling started (v2.1)...")
+    print("Bot polling active...")
     last_update_id = 0
 
     while True:
