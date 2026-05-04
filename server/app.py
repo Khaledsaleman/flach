@@ -30,10 +30,11 @@ game_state = {
         "swap_rates": {"gold_to_ton": 0.0001, "gold_to_usdt": 0.0005},
         "min_withdrawal": 5.0
     },
-    "users": {}, # user_id -> {banned: bool, name: str, joined: str}
+    "users": {}, # user_id -> {banned: bool, name: str, photo: str, joined: str, completed_tasks: [], balance: {gold, ton, usdt}, referrer: str}
     "tasks": [
-        {"id": 1, "title": "انضم لقناة التيليجرام", "reward": 500, "type": "telegram", "link": "https://t.me/example"},
-        {"id": 2, "title": "دعوة 3 أصدقاء", "reward": 1000, "type": "referral", "count": 3}
+        {"id": 1, "title": "انضم لقناة المطور", "reward": {"gold": 1000}, "type": "telegram", "link": "https://t.me/khaledsaleman", "chat_id": "@khaledsaleman"},
+        {"id": 2, "title": "تابعنا على تويتر", "reward": {"gold": 500}, "type": "link", "link": "https://x.com/example"},
+        {"id": 3, "title": "مشاهدة فيديو تعليمي", "reward": {"usdt": 0.1}, "type": "link", "link": "https://youtube.com/example"}
     ],
     "withdrawals": [], # list of {id, user_id, amount, status, timestamp}
     "admin_logs": [] # list of {action, admin_id, timestamp, details}
@@ -64,8 +65,6 @@ def verify_telegram_data(init_data):
 def is_admin_request(data):
     """Checks if the request is from the authorized admin."""
     init_data = data.get('initData')
-    # For now, we skip hash verification to allow testing with mock IDs if needed,
-    # but in production, verify_telegram_data(init_data) must be used.
 
     # Simple check for demo/sandbox:
     user_id = data.get('user_id')
@@ -159,16 +158,105 @@ def check_status():
     if user_id not in game_state["users"]:
         game_state["users"][user_id] = {
             "name": data.get('username', 'Player'),
+            "photo": data.get('photo', ''),
             "joined": datetime.utcnow().isoformat(),
-            "banned": False
+            "banned": False,
+            "completed_tasks": [],
+            "balance": {"gold": 12450, "ton": 24.5, "usdt": 150},
+            "referrer": data.get('referrer')
         }
 
     user = game_state["users"][user_id]
+
+    # Update user data if changed
+    user["name"] = data.get('username', user["name"])
+    user["photo"] = data.get('photo', user.get("photo"))
+
     return jsonify({
         "maintenance": game_state["settings"]["maintenance_mode"],
         "banned": user.get("banned", False),
-        "settings": game_state["settings"]
+        "settings": game_state["settings"],
+        "user": user
     })
+
+@app.route('/tasks/list', methods=['GET'])
+def list_tasks():
+    user_id = request.args.get('user_id')
+    if not user_id or user_id not in game_state["users"]:
+        return jsonify({"error": "User not found"}), 404
+
+    user = game_state["users"][user_id]
+    completed = user.get("completed_tasks", [])
+
+    # Enrich tasks with completion status
+    tasks = []
+    for t in game_state["tasks"]:
+        task_copy = t.copy()
+        task_copy["completed"] = t["id"] in completed
+        tasks.append(task_copy)
+
+    return jsonify({"tasks": tasks})
+
+@app.route('/tasks/verify', methods=['POST'])
+def verify_task():
+    data = request.json
+    user_id = str(data.get('user_id'))
+    task_id = int(data.get('task_id'))
+
+    if user_id not in game_state["users"]:
+        return jsonify({"error": "User not found"}), 404
+
+    user = game_state["users"][user_id]
+    if task_id in user.get("completed_tasks", []):
+        return jsonify({"error": "Task already completed"}), 400
+
+    task = next((t for t in game_state["tasks"] if t["id"] == task_id), None)
+    if not task:
+        return jsonify({"error": "Task not found"}), 404
+
+    # Verification logic
+    verified = False
+    if task["type"] == "telegram":
+        # Call Telegram API to check membership
+        try:
+            url = f"{TELEGRAM_API_URL}/getChatMember"
+            res = requests.get(url, params={"chat_id": task["chat_id"], "user_id": user_id})
+            res_data = res.json()
+            if res_data.get("ok"):
+                status = res_data["result"]["status"]
+                if status in ["member", "administrator", "creator"]:
+                    verified = True
+        except Exception as e:
+            print(f"Telegram verification error: {e}")
+            # Fallback for sandbox testing if needed
+            # verified = True
+    else:
+        # For other link types, we assume verified for now
+        verified = True
+
+    if verified:
+        # Mark as completed
+        if "completed_tasks" not in user: user["completed_tasks"] = []
+        user["completed_tasks"].append(task_id)
+
+        # Apply rewards
+        reward = task["reward"]
+        for asset, amount in reward.items():
+            if "balance" not in user: user["balance"] = {"gold": 12450, "ton": 24.5, "usdt": 150} # Init with default from index.html if missing
+            user["balance"][asset] = user["balance"].get(asset, 0) + amount
+
+            # Referral bonus
+            if user.get("referrer"):
+                ref_id = user["referrer"]
+                if ref_id in game_state["users"]:
+                    ref_user = game_state["users"][ref_id]
+                    bonus = amount * (game_state["settings"]["referral_percent"] / 100.0)
+                    if "balance" not in ref_user: ref_user["balance"] = {"gold": 12450, "ton": 24.5, "usdt": 150}
+                    ref_user["balance"][asset] = ref_user["balance"].get(asset, 0) + bonus
+
+        return jsonify({"status": "ok", "message": "Task verified and reward applied", "new_balance": user["balance"]})
+
+    return jsonify({"error": "Verification failed"}), 400
 
 @app.route('/notify', methods=['POST'])
 def notify():
