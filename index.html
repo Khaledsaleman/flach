@@ -309,10 +309,21 @@
                     <!-- Users Management -->
                     <div class="glass p-4 rounded-xl">
                         <h2 class="font-medium text-white mb-3 flex items-center gap-2"><span class="text-blue-400">👥</span> إدارة المستخدمين</h2>
-                        <div class="flex gap-2 mb-3">
-                            <input type="text" id="targetUserId" placeholder="Telegram ID" class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
-                            <button onclick="adminAction('ban_user', {target_user_id: document.getElementById('targetUserId').value, ban: true})" class="btn-danger px-4 py-2 rounded-lg text-xs">حظر</button>
-                            <button onclick="adminAction('ban_user', {target_user_id: document.getElementById('targetUserId').value, ban: false})" class="btn-primary px-4 py-2 rounded-lg text-xs">فك الحظر</button>
+                        <div class="space-y-3">
+                            <div class="flex gap-2">
+                                <input type="text" id="targetUserId" placeholder="Telegram ID" class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                <button onclick="adminAction('ban_user', {target_user_id: document.getElementById('targetUserId').value, ban: true})" class="btn-danger px-4 py-2 rounded-lg text-xs">حظر</button>
+                                <button onclick="adminAction('ban_user', {target_user_id: document.getElementById('targetUserId').value, ban: false})" class="btn-primary px-4 py-2 rounded-lg text-xs">فك الحظر</button>
+                            </div>
+                            <div class="space-y-2 pt-2 border-t border-white/5">
+                                <p class="text-[10px] text-gray-400">إضافة موارد للمستخدم:</p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="number" id="adminGoldAdd" placeholder="Gold" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                    <input type="number" id="adminTonAdd" placeholder="TON" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                </div>
+                                <input type="number" id="adminUsdtAdd" placeholder="USDT" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                <button onclick="adminAddResources()" class="w-full btn-secondary py-2 rounded-lg text-xs">إرسال الموارد</button>
+                            </div>
                         </div>
                     </div>
                     <!-- System Controls -->
@@ -367,6 +378,23 @@
                                 </select>
                             </div>
                             <button onclick="addNewTask()" class="w-full btn-primary py-2 rounded-lg text-xs">إضافة المهمة</button>
+                        </div>
+                    </div>
+
+                    <!-- Broadcast -->
+                    <div class="glass p-4 rounded-xl">
+                        <h2 class="font-medium text-white mb-3 flex items-center gap-2"><span class="text-purple-400">📢</span> رسالة جماعية</h2>
+                        <div class="space-y-2">
+                            <textarea id="broadcastMsg" rows="3" placeholder="اكتب رسالتك هنا..." class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm"></textarea>
+                            <button onclick="adminBroadcast()" class="w-full btn-secondary py-2 rounded-lg text-xs">إرسال للجميع</button>
+                        </div>
+                    </div>
+
+                    <!-- Logs -->
+                    <div class="glass p-4 rounded-xl">
+                        <h2 class="font-medium text-white mb-3 flex items-center gap-2"><span class="text-gray-400">📜</span> سجل النشاط</h2>
+                        <div id="adminLogs" class="max-h-40 overflow-y-auto space-y-1 text-[9px] font-mono opacity-80">
+                            <!-- Logs will be loaded here -->
                         </div>
                     </div>
                 </div>
@@ -458,6 +486,15 @@
         const marketBtn = document.getElementById('marketToggleBtn');
         marketBtn.textContent = adminData.settings.market_enabled ? 'إيقاف السوق' : 'تشغيل السوق';
 
+        const logsCont = document.getElementById('adminLogs');
+        logsCont.innerHTML = adminData.admin_logs.map(log => `
+            <div class="border-b border-white/5 pb-1">
+                <span class="text-blue-400">[${log.action}]</span>
+                <span class="text-gray-500">${new Date(log.timestamp).toLocaleTimeString()}</span>:
+                ${JSON.stringify(log.details)}
+            </div>
+        `).reverse().join('');
+
         document.getElementById('rateTon').value = adminData.settings.swap_rates.gold_to_ton;
         document.getElementById('rateUsdt').value = adminData.settings.swap_rates.gold_to_usdt;
         document.getElementById('refPercent').value = adminData.settings.referral_percent;
@@ -477,6 +514,26 @@
             action: 'add',
             task: { title, link, chat_id: chatId, reward, type: chatId ? 'telegram' : 'link' }
         });
+    }
+
+    function adminAddResources() {
+        const targetId = document.getElementById('targetUserId').value;
+        const gold = parseFloat(document.getElementById('adminGoldAdd').value) || 0;
+        const ton = parseFloat(document.getElementById('adminTonAdd').value) || 0;
+        const usdt = parseFloat(document.getElementById('adminUsdtAdd').value) || 0;
+
+        if (!targetId) { showToast('يرجى إدخال معرف المستخدم', 'error'); return; }
+
+        adminAction('users/resources', {
+            target_user_id: targetId,
+            resources: { gold, ton, usdt }
+        });
+    }
+
+    function adminBroadcast() {
+        const msg = document.getElementById('broadcastMsg').value;
+        if (!msg) { showToast('اكتب رسالة أولاً', 'error'); return; }
+        adminAction('broadcast', { message: msg });
     }
 
     function toggleMaintenance() {
@@ -599,7 +656,7 @@
     function copyReferralLink() {
         const user = tg.initDataUnsafe?.user;
         if (!user) return;
-        const link = `https://t.me/CryptoClashBot?start=${user.id}`;
+        const link = `https://t.me/ClashofCrypto_bot?start=${user.id}`;
         navigator.clipboard.writeText(link);
         showToast('تم نسخ رابط الدعوة!', 'success');
     }

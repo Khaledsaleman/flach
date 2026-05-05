@@ -33,7 +33,7 @@ def handle_update(update):
     text = message.get("text", "")
     user_id = str(message["from"]["id"])
 
-    if text == "/start":
+    if text.startswith("/start"):
         welcome_text = (
             "🏰 <b>مرحباً بك في عالم CryptoClash!</b>\n\n"
             "الآن يمكنك بناء إمبراطوريتك، تطوير قاعدتك، والمنافسة في أقوى تحديات الكريبتو.\n\n"
