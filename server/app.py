@@ -381,6 +381,8 @@ def check_status():
     user_data = dict(user)
     user_data['balance'] = {"gold": user['gold'], "ton": user['ton'], "usdt": user['usdt']}
     user_data['banned'] = bool(user['banned'])
+    user_data['energy'] = user['energy']
+    user_data['rank'] = user['rank']
     user_data['buildings'] = buildings_list
 
     conn.close()
@@ -591,14 +593,22 @@ def save_buildings():
     user_id = str(data.get('user_id'))
     buildings = data.get('buildings', [])
     balance = data.get('balance', {})
+    energy = data.get('energy')
+    rank = data.get('rank')
 
     conn = get_db_connection()
     try:
-        # Update user balance if provided
+        # Update user state if provided
         if balance:
             conn.execute('''
                 UPDATE users SET gold = ?, ton = ?, usdt = ? WHERE id = ?
             ''', (balance.get('gold'), balance.get('ton'), balance.get('usdt'), user_id))
+
+        if energy is not None:
+            conn.execute('UPDATE users SET energy = ? WHERE id = ?', (energy, user_id))
+
+        if rank:
+            conn.execute('UPDATE users SET rank = ? WHERE id = ?', (rank, user_id))
 
         # Clear existing buildings
         conn.execute('DELETE FROM buildings WHERE user_id = ?', (user_id,))

@@ -208,10 +208,10 @@
             </div>
         </div>
         <div class="grid grid-cols-4 gap-1.5 mb-1.5">
-            <div class="glass rounded-lg p-1 text-center"><div class="flex items-center justify-center gap-0.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 flex items-center justify-center text-[7px]">ذ</span><span class="text-[8px] text-gray-400">ذهب</span></div><div class="font-orbitron text-[9px] text-amber-400" id="goldAmount">12,450</div></div>
-            <div class="glass rounded-lg p-1 text-center"><div class="flex items-center justify-center gap-0.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 flex items-center justify-center text-[7px]">ط</span><span class="text-[8px] text-gray-400">طاقة</span></div><div class="font-orbitron text-[9px] text-emerald-400" id="energyAmount">85</div></div>
-            <div class="glass rounded-lg p-1 text-center"><div class="flex items-center justify-center gap-0.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500 flex items-center justify-center text-[7px]">T</span><span class="text-[8px] text-gray-400">TON</span></div><div class="font-orbitron text-[9px] text-blue-400" id="tonAmount">24.5</div></div>
-            <div class="glass rounded-lg p-1 text-center"><div class="flex items-center justify-center gap-0.5"><span class="w-2.5 h-2.5 rounded-full bg-green-500 flex items-center justify-center text-[7px]">U</span><span class="text-[8px] text-gray-400">USDT</span></div><div class="font-orbitron text-[9px] text-green-400" id="usdtAmount">150</div></div>
+            <div class="glass rounded-lg p-1 text-center"><div class="flex items-center justify-center gap-0.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 flex items-center justify-center text-[7px]">ذ</span><span class="text-[8px] text-gray-400">ذهب</span></div><div class="font-orbitron text-[9px] text-amber-400" id="goldAmount">0</div></div>
+            <div class="glass rounded-lg p-1 text-center"><div class="flex items-center justify-center gap-0.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 flex items-center justify-center text-[7px]">ط</span><span class="text-[8px] text-gray-400">طاقة</span></div><div class="font-orbitron text-[9px] text-emerald-400" id="energyAmount">0</div></div>
+            <div class="glass rounded-lg p-1 text-center"><div class="flex items-center justify-center gap-0.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500 flex items-center justify-center text-[7px]">T</span><span class="text-[8px] text-gray-400">TON</span></div><div class="font-orbitron text-[9px] text-blue-400" id="tonAmount">0</div></div>
+            <div class="glass rounded-lg p-1 text-center"><div class="flex items-center justify-center gap-0.5"><span class="w-2.5 h-2.5 rounded-full bg-green-500 flex items-center justify-center text-[7px]">U</span><span class="text-[8px] text-gray-400">USDT</span></div><div class="font-orbitron text-[9px] text-green-400" id="usdtAmount">0</div></div>
         </div>
         <div>
             <div class="flex justify-between text-[8px] mb-0.5"><span class="text-gray-400">⚡ الطاقة</span><span class="text-amber-400" id="energyText">85/100</span></div>
@@ -476,7 +476,9 @@
     tg.setHeaderColor('#0a0a1a'); tg.setBackgroundColor('#0a0a1a');
 
     // CONFIG: Backend URL
-    let BACKEND_URL = "http://localhost:5000";
+    let BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === "")
+        ? "http://localhost:5000"
+        : "https://cryptoclash-backend.onrender.com"; // User should update this with their real Render URL
     const ADMIN_ID = 2003253093;
     let adminData = null;
 
@@ -623,6 +625,12 @@
                     playerData.ton = status.user.balance.ton;
                     playerData.usdt = status.user.balance.usdt;
                 }
+                if (status.user.energy !== undefined) {
+                    playerData.energy = status.user.energy;
+                }
+                if (status.user.rank) {
+                    playerData.rank = status.user.rank;
+                }
                 if (status.user.buildings) {
                     buildings = status.user.buildings;
                 }
@@ -731,20 +739,26 @@
         setTimeout(() => verifyTaskCompletion(taskId), 3000);
     }
 
-    async function saveBuildingsToServer() {
+    async function saveProgress() {
         const user = tg.initDataUnsafe?.user;
         if (!user) return;
         try {
-            await fetch(`${BACKEND_URL}/buildings/save`, {
+            const response = await fetch(`${BACKEND_URL}/buildings/save`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     user_id: user.id,
                     buildings: buildings,
-                    balance: { gold: playerData.gold, ton: playerData.ton, usdt: playerData.usdt }
+                    balance: { gold: playerData.gold, ton: playerData.ton, usdt: playerData.usdt },
+                    energy: playerData.energy,
+                    rank: playerData.rank
                 })
             });
-        } catch (e) { console.error("Save buildings failed:", e); }
+            if (!response.ok) throw new Error('Network response was not ok');
+        } catch (e) {
+            console.error("Save progress failed:", e);
+            // Optionally show toast for critical failures
+        }
     }
 
     async function verifyTaskCompletion(taskId) {
@@ -1133,7 +1147,7 @@
                         playerData.gold -= def.gold;
                         buildings.push({id:'b'+Date.now(), type:selectedBuildType, col, row, level:1});
                         renderBuildings(); updateUI();
-                        saveBuildingsToServer();
+                        saveProgress();
                         showToast('تم بناء ' + def.name + ' 🎉', 'success');
                     } else { showToast('ذهب غير كافٍ!', 'error'); }
                 } else { showToast('لا يمكن البناء هنا', 'error'); }
@@ -1205,7 +1219,7 @@
         if (playerData.gold < gc || playerData.energy < ec) { showToast('موارد غير كافية!','error'); return; }
         playerData.gold -= gc; playerData.energy -= ec;
         b.level++; renderBuildings(); updateUI(); closeModal('upgradeModal');
-        saveBuildingsToServer();
+        saveProgress();
         showToast('تم الترقية! 🎉', 'success');
 
         const bName = BDEFS[b.type].name;
@@ -1282,13 +1296,14 @@
         document.getElementById('energyText').textContent = `${playerData.energy}/${playerData.energyMax}`;
         document.getElementById('energyBar').style.width = `${(playerData.energy/playerData.energyMax)*100}%`;
     }
-    function startEnergyRegen() { setInterval(()=>{ if(playerData.energy<playerData.energyMax){playerData.energy++;updateUI();} },60000); }
+    function startEnergyRegen() { setInterval(()=>{ if(playerData.energy<playerData.energyMax){playerData.energy++;updateUI();saveProgress();} },60000); }
     function checkDailyReset() { const n=new Date(); document.getElementById('questReset').textContent=`إعادة التعيين: ${24-n.getHours()}س`; }
     function claimDailyReward() {
         if(playerData.dailyRewardClaimed){showToast('تم الاستلام!','warning');return;}
         playerData.gold+=100;
         playerData.dailyRewardClaimed=true;
         updateUI();
+        saveProgress();
         showToast('+100 ذهب 🎉','success');
         sendTelegramNotification(`💰 <b>تم جمع المكافأة اليومية (+100 ذهب)!</b>`);
     }
@@ -1299,6 +1314,7 @@
         const g=w?Math.floor(250):Math.floor(-100);
         playerData.gold+=g;
         updateUI();
+        saveProgress();
         document.getElementById('opponentCard').classList.add('hidden');
         showToast(w?'نصر! ⚔️':'هزيمة! 😔',w?'success':'error');
 
