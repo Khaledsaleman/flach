@@ -3,13 +3,21 @@ import hashlib
 import hmac
 import json
 import uuid
-from datetime import datetime
+import sqlite3
+from datetime import datetime, UTC
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
 from dotenv import load_dotenv
 
 load_dotenv()
+
+DB_PATH = 'server/database.db'
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 app = Flask(__name__)
 CORS(app)
@@ -87,6 +95,29 @@ def get_admin_data():
 
     # Return game state but maybe truncate logs to last 50
     response_state = game_state.copy()
+
+    conn = get_db_connection()
+    # Add DB settings to response
+    db_settings = conn.execute("SELECT * FROM global_settings").fetchall()
+    for s in db_settings:
+        response_state["settings"][s['key']] = s['value']
+
+    # Add DB users to response for the Admin Panel list
+    db_users = conn.execute("SELECT * FROM users").fetchall()
+    users_dict = {}
+    for u in db_users:
+        user_id = str(u['id'])
+        users_dict[user_id] = {
+            "name": u['name'],
+            "photo": u['photo'],
+            "banned": bool(u['banned']),
+            "balance": {"gold": u['gold'], "ton": u['ton'], "usdt": u['usdt']},
+            "referrer": u['referrer']
+        }
+    response_state["users"] = users_dict
+
+    conn.close()
+
     response_state["admin_logs"] = game_state["admin_logs"][-50:]
     response_state["status"] = "ok"
     return jsonify(response_state)
@@ -114,6 +145,20 @@ def update_settings():
                 return jsonify({"status": "error", "error": "Invalid swap rates"}), 400
 
         game_state["settings"].update(new_settings)
+
+        # Persistent settings
+        conn = get_db_connection()
+        try:
+            if 'starting_gold' in new_settings:
+                conn.execute("UPDATE global_settings SET value = ? WHERE key = 'starting_gold'", (str(new_settings['starting_gold']),))
+            if 'base_mining_rate' in new_settings:
+                conn.execute("UPDATE global_settings SET value = ? WHERE key = 'base_mining_rate'", (str(new_settings['base_mining_rate']),))
+            conn.commit()
+        except Exception as e:
+            print(f"Error updating global settings: {e}")
+        finally:
+            conn.close()
+
         log_admin_action("update_settings", new_settings)
         return jsonify({"status": "ok", "settings": game_state["settings"]})
 
@@ -130,20 +175,27 @@ def ban_user():
         return jsonify({"status": "error", "error": "Missing target_user_id"}), 400
 
     target_id = str(target_id)
-    ban_status = data.get('ban', True)
+    ban_status = int(data.get('ban', True))
 
-    if target_id not in game_state["users"]:
-         game_state["users"][target_id] = {
-            "name": "Unknown",
-            "photo": "",
-            "joined": datetime.utcnow().isoformat(),
-            "banned": False,
-            "completed_tasks": [],
-            "balance": {"gold": 12450, "ton": 24.5, "usdt": 150},
-            "referrer": None
-        }
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (target_id,)).fetchone()
 
-    game_state["users"][target_id]["banned"] = ban_status
+    if not user:
+        # Register them first
+        starting_gold = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_gold'").fetchone()['value'])
+        starting_ton = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_ton'").fetchone()['value'])
+        starting_usdt = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_usdt'").fetchone()['value'])
+        current_time = datetime.now(UTC).isoformat()
+        conn.execute('''
+            INSERT INTO users (id, name, photo, gold, ton, usdt, last_mining_time, banned)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (target_id, "Unknown", "", starting_gold, starting_ton, starting_usdt, current_time, ban_status))
+    else:
+        conn.execute('UPDATE users SET banned = ? WHERE id = ?', (ban_status, target_id))
+
+    conn.commit()
+    conn.close()
+
     log_admin_action("ban_user" if ban_status else "unban_user", {"target": target_id})
     return jsonify({"status": "ok", "message": f"User {target_id} {'banned' if ban_status else 'unbanned'}"})
 
@@ -156,20 +208,27 @@ def add_resources():
     target_id = str(data.get('target_user_id'))
     resources = data.get('resources', {})
 
-    if target_id in game_state["users"]:
-        user = game_state["users"][target_id]
-        if "balance" not in user: user["balance"] = {"gold": 12450, "ton": 24.5, "usdt": 150}
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (target_id,)).fetchone()
 
+    if user:
         try:
-            user["balance"]["gold"] += float(resources.get('gold', 0))
-            user["balance"]["ton"] += float(resources.get('ton', 0))
-            user["balance"]["usdt"] += float(resources.get('usdt', 0))
+            gold = float(resources.get('gold', 0))
+            ton = float(resources.get('ton', 0))
+            usdt = float(resources.get('usdt', 0))
+
+            conn.execute('UPDATE users SET gold = gold + ?, ton = ton + ?, usdt = usdt + ? WHERE id = ?',
+                         (gold, ton, usdt, target_id))
+            conn.commit()
+            conn.close()
         except (ValueError, TypeError):
+             conn.close()
              return jsonify({"status": "error", "error": "Invalid resource values"}), 400
 
         log_admin_action("add_resources", {"target": target_id, "amount": resources})
         return jsonify({"status": "ok", "message": "Resources added successfully"})
 
+    conn.close()
     return jsonify({"status": "error", "error": "User not found"}), 404
 
 @app.route('/admin/broadcast', methods=['POST'])
@@ -182,8 +241,13 @@ def admin_broadcast():
     if not message:
         return jsonify({"status": "error", "error": "Missing message"}), 400
 
+    conn = get_db_connection()
+    users = conn.execute('SELECT id FROM users').fetchall()
+    conn.close()
+
     success_count = 0
-    for user_id in game_state["users"]:
+    for user in users:
+        user_id = user['id']
         try:
             url = f"{TELEGRAM_API_URL}/sendMessage"
             payload = {"chat_id": user_id, "text": message, "parse_mode": "HTML"}
@@ -205,19 +269,32 @@ def manage_tasks():
     action = data.get('action') # add, delete
     task_data = data.get('task')
 
+    conn = get_db_connection()
     if action == "add":
         if not task_data: return jsonify({"status": "error", "error": "Missing task data"}), 400
-        task_data["id"] = len(game_state["tasks"]) + 1
-        game_state["tasks"].append(task_data)
+        reward = task_data.get('reward', {})
+        conn.execute('''
+            INSERT INTO tasks (title, reward_gold, reward_ton, reward_usdt, type, link, chat_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (task_data['title'], reward.get('gold', 0), reward.get('ton', 0), reward.get('usdt', 0),
+              task_data['type'], task_data['link'], task_data.get('chat_id')))
+        conn.commit()
         log_admin_action("add_task", task_data)
-        return jsonify({"status": "ok", "message": "Task added", "tasks": game_state["tasks"]})
     elif action == "delete":
         if not task_data or "id" not in task_data: return jsonify({"status": "error", "error": "Missing task ID"}), 400
-        game_state["tasks"] = [t for t in game_state["tasks"] if t["id"] != task_data["id"]]
+        conn.execute('DELETE FROM tasks WHERE id = ?', (task_data['id'],))
+        conn.commit()
         log_admin_action("delete_task", task_data)
-        return jsonify({"status": "ok", "message": "Task deleted", "tasks": game_state["tasks"]})
 
-    return jsonify({"status": "error", "error": "Invalid action"}), 400
+    rows = conn.execute('SELECT * FROM tasks').fetchall()
+    tasks = []
+    for r in rows:
+        tasks.append({
+            "id": r['id'], "title": r['title'], "type": r['type'], "link": r['link'], "chat_id": r['chat_id'],
+            "reward": {"gold": r['reward_gold'], "ton": r['reward_ton'], "usdt": r['reward_usdt']}
+        })
+    conn.close()
+    return jsonify({"status": "ok", "message": f"Task {action}ed", "tasks": tasks})
 
 @app.route('/admin/withdrawals', methods=['POST'])
 def manage_withdrawals():
@@ -249,47 +326,99 @@ def check_status():
     user_id = str(data.get('user_id'))
     referrer = str(data.get('referrer')) if data.get('referrer') else None
 
-    # Register user if not exists
-    if user_id not in game_state["users"]:
-        game_state["users"][user_id] = {
-            "name": data.get('username', 'Player'),
-            "photo": data.get('photo', ''),
-            "joined": datetime.utcnow().isoformat(),
-            "banned": False,
-            "completed_tasks": [],
-            "balance": {"gold": 12450, "ton": 24.5, "usdt": 150},
-            "referrer": referrer
-        }
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
 
-    user = game_state["users"][user_id]
+    current_time = datetime.now(UTC).isoformat()
 
-    # Update user data if changed
-    user["name"] = data.get('username', user.get("name", "Player"))
-    user["photo"] = data.get('photo', user.get("photo", ""))
+    if not user:
+        # Get starting resources from settings
+        starting_gold = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_gold'").fetchone()['value'])
+        starting_ton = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_ton'").fetchone()['value'])
+        starting_usdt = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_usdt'").fetchone()['value'])
+
+        conn.execute('''
+            INSERT INTO users (id, name, photo, gold, ton, usdt, last_mining_time, referrer)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, data.get('username', 'Player'), data.get('photo', ''),
+              starting_gold, starting_ton, starting_usdt, current_time, referrer))
+        conn.commit()
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    else:
+        # Update name and photo if they changed
+        conn.execute('UPDATE users SET name = ?, photo = ? WHERE id = ?',
+                     (data.get('username', user['name']), data.get('photo', user['photo']), user_id))
+        conn.commit()
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+
+    # Mining Logic
+    last_mining_time_str = user['last_mining_time']
+    if last_mining_time_str:
+        last_mining_time = datetime.fromisoformat(last_mining_time_str)
+        now = datetime.now(UTC)
+        time_diff = (now - last_mining_time).total_seconds() / 3600.0 # hours
+
+        # Calculate total production rate
+        buildings = conn.execute('SELECT * FROM buildings WHERE user_id = ? AND type = "goldMine"', (user_id,)).fetchall()
+        base_mining_rate = float(conn.execute("SELECT value FROM global_settings WHERE key = 'base_mining_rate'").fetchone()['value'])
+
+        total_production = sum(b['level'] * base_mining_rate for b in buildings)
+        earned_gold = total_production * time_diff
+
+        if earned_gold > 0:
+            conn.execute('UPDATE users SET gold = gold + ?, last_mining_time = ? WHERE id = ?',
+                         (earned_gold, current_time, user_id))
+            conn.commit()
+            user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+        else:
+            conn.execute('UPDATE users SET last_mining_time = ? WHERE id = ?', (current_time, user_id))
+            conn.commit()
+
+    # Get buildings
+    buildings_rows = conn.execute('SELECT * FROM buildings WHERE user_id = ?', (user_id,)).fetchall()
+    buildings_list = [dict(row) for row in buildings_rows]
+
+    user_data = dict(user)
+    user_data['balance'] = {"gold": user['gold'], "ton": user['ton'], "usdt": user['usdt']}
+    user_data['banned'] = bool(user['banned'])
+    user_data['buildings'] = buildings_list
+
+    conn.close()
 
     return jsonify({
         "maintenance": game_state["settings"]["maintenance_mode"],
-        "banned": user.get("banned", False),
+        "banned": user_data['banned'],
         "settings": game_state["settings"],
-        "user": user
+        "user": user_data
     })
 
 @app.route('/tasks/list', methods=['GET'])
 def list_tasks():
     user_id = request.args.get('user_id')
-    if not user_id or user_id not in game_state["users"]:
+    if not user_id:
+        return jsonify({"error": "Missing user_id"}), 400
+
+    conn = get_db_connection()
+    user = conn.execute('SELECT id FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not user:
+        conn.close()
         return jsonify({"error": "User not found"}), 404
 
-    user = game_state["users"][user_id]
-    completed = user.get("completed_tasks", [])
+    # Get completed tasks
+    completed_rows = conn.execute('SELECT task_id FROM completed_tasks WHERE user_id = ?', (user_id,)).fetchall()
+    completed = [r['task_id'] for r in completed_rows]
 
-    # Enrich tasks with completion status
+    # Get all tasks
+    task_rows = conn.execute('SELECT * FROM tasks').fetchall()
     tasks = []
-    for t in game_state["tasks"]:
-        task_copy = t.copy()
-        task_copy["completed"] = t["id"] in completed
-        tasks.append(task_copy)
+    for r in task_rows:
+        tasks.append({
+            "id": r['id'], "title": r['title'], "type": r['type'], "link": r['link'], "chat_id": r['chat_id'],
+            "reward": {"gold": r['reward_gold'], "ton": r['reward_ton'], "usdt": r['reward_usdt']},
+            "completed": r['id'] in completed
+        })
 
+    conn.close()
     return jsonify({"tasks": tasks})
 
 @app.route('/referrals/list', methods=['GET'])
@@ -299,88 +428,101 @@ def list_referrals():
         return jsonify({"status": "error", "error": "Missing user_id", "referrals": []}), 400
 
     user_id = str(user_id)
-    print(f"Fetching referrals for user: {user_id}")
 
-    # Find all users referred by this user
-    referrals = []
+    conn = get_db_connection()
     try:
-        for uid, udata in game_state["users"].items():
-            # Ensure we compare strings and handle potential None values
-            ref_id = str(udata.get("referrer")) if udata.get("referrer") else None
-            if ref_id == user_id:
-                referrals.append({
-                    "id": str(uid),
-                    "name": udata.get("name", "Unknown"),
-                    "photo": udata.get("photo", ""),
-                    "gold": udata.get("balance", {}).get("gold", 0)
-                })
+        rows = conn.execute('SELECT * FROM users WHERE referrer = ?', (user_id,)).fetchall()
+        referrals = []
+        for row in rows:
+            referrals.append({
+                "id": str(row['id']),
+                "name": row['name'] or "Unknown",
+                "photo": row['photo'] or "",
+                "gold": row['gold'] or 0
+            })
 
+        conn.close()
         # Sort by gold descending
         referrals.sort(key=lambda x: x.get("gold", 0), reverse=True)
         return jsonify({"status": "ok", "referrals": referrals})
     except Exception as e:
+        conn.close()
         print(f"Error in list_referrals: {e}")
         return jsonify({"status": "error", "error": "Internal Server Error", "referrals": []}), 500
 
 @app.route('/tasks/verify', methods=['POST'])
 def verify_task():
     data = request.json
+    print(f"Verifying task: {data}")
     user_id = str(data.get('user_id'))
     task_id = int(data.get('task_id'))
 
-    if user_id not in game_state["users"]:
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not user:
+        conn.close()
         return jsonify({"error": "User not found"}), 404
 
-    user = game_state["users"][user_id]
-    if task_id in user.get("completed_tasks", []):
+    completed = conn.execute('SELECT * FROM completed_tasks WHERE user_id = ? AND task_id = ?', (user_id, task_id)).fetchone()
+    if completed:
+        conn.close()
         return jsonify({"error": "Task already completed"}), 400
 
-    task = next((t for t in game_state["tasks"] if t["id"] == task_id), None)
-    if not task:
+    task_row = conn.execute('SELECT * FROM tasks WHERE id = ?', (task_id,)).fetchone()
+    if not task_row:
+        conn.close()
         return jsonify({"error": "Task not found"}), 404
+
+    task = dict(task_row)
+    task['reward'] = {"gold": task['reward_gold'], "ton": task['reward_ton'], "usdt": task['reward_usdt']}
 
     # Verification logic
     verified = False
     if task["type"] == "telegram":
-        # Call Telegram API to check membership
-        try:
-            url = f"{TELEGRAM_API_URL}/getChatMember"
-            res = requests.get(url, params={"chat_id": task["chat_id"], "user_id": user_id})
-            res_data = res.json()
-            if res_data.get("ok"):
-                status = res_data["result"]["status"]
-                if status in ["member", "administrator", "creator"]:
-                    verified = True
-        except Exception as e:
-            print(f"Telegram verification error: {e}")
-            # Fallback for sandbox testing if needed
-            # verified = True
+        # Check if chat_id is provided, if not fallback to verified for testing
+        if not task.get("chat_id"):
+            verified = True
+        else:
+            try:
+                url = f"{TELEGRAM_API_URL}/getChatMember"
+                res = requests.get(url, params={"chat_id": task["chat_id"], "user_id": user_id})
+                res_data = res.json()
+                if res_data.get("ok"):
+                    status = res_data["result"]["status"]
+                    if status in ["member", "administrator", "creator"]:
+                        verified = True
+            except Exception as e:
+                print(f"Telegram verification error: {e}")
     else:
-        # For other link types, we assume verified for now
         verified = True
 
     if verified:
         # Mark as completed
-        if "completed_tasks" not in user: user["completed_tasks"] = []
-        user["completed_tasks"].append(task_id)
+        conn.execute('INSERT INTO completed_tasks (user_id, task_id) VALUES (?, ?)', (user_id, task_id))
 
         # Apply rewards
         reward = task["reward"]
-        for asset, amount in reward.items():
-            if "balance" not in user: user["balance"] = {"gold": 12450, "ton": 24.5, "usdt": 150} # Init with default from index.html if missing
-            user["balance"][asset] = user["balance"].get(asset, 0) + amount
+        gold_reward = reward.get('gold', 0)
+        ton_reward = reward.get('ton', 0)
+        usdt_reward = reward.get('usdt', 0)
 
-            # Referral bonus
-            if user.get("referrer"):
-                ref_id = user["referrer"]
-                if ref_id in game_state["users"]:
-                    ref_user = game_state["users"][ref_id]
-                    bonus = amount * (game_state["settings"]["referral_percent"] / 100.0)
-                    if "balance" not in ref_user: ref_user["balance"] = {"gold": 12450, "ton": 24.5, "usdt": 150}
-                    ref_user["balance"][asset] = ref_user["balance"].get(asset, 0) + bonus
+        conn.execute('UPDATE users SET gold = gold + ?, ton = ton + ?, usdt = usdt + ? WHERE id = ?',
+                     (gold_reward, ton_reward, usdt_reward, user_id))
 
-        return jsonify({"status": "ok", "message": "Task verified and reward applied", "new_balance": user["balance"]})
+        # Referral bonus
+        referrer_id = user['referrer']
+        if referrer_id:
+            bonus_percent = game_state["settings"]["referral_percent"] / 100.0
+            conn.execute('UPDATE users SET gold = gold + ?, ton = ton + ?, usdt = usdt + ? WHERE id = ?',
+                         (gold_reward * bonus_percent, ton_reward * bonus_percent, usdt_reward * bonus_percent, referrer_id))
 
+        conn.commit()
+        updated_user = conn.execute('SELECT gold, ton, usdt FROM users WHERE id = ?', (user_id,)).fetchone()
+        conn.close()
+        return jsonify({"status": "ok", "message": "Task verified and reward applied",
+                        "new_balance": {"gold": updated_user['gold'], "ton": updated_user['ton'], "usdt": updated_user['usdt']}})
+
+    conn.close()
     return jsonify({"error": "Verification failed"}), 400
 
 @app.route('/notify', methods=['POST'])
@@ -442,6 +584,50 @@ def trigger_event():
     })
 
     return jsonify({"status": "Event queued", "event_count": len(pending_events[user_id])})
+
+@app.route('/buildings/save', methods=['POST'])
+def save_buildings():
+    data = request.json
+    user_id = str(data.get('user_id'))
+    buildings = data.get('buildings', [])
+    balance = data.get('balance', {})
+
+    conn = get_db_connection()
+    try:
+        # Update user balance if provided
+        if balance:
+            conn.execute('''
+                UPDATE users SET gold = ?, ton = ?, usdt = ? WHERE id = ?
+            ''', (balance.get('gold'), balance.get('ton'), balance.get('usdt'), user_id))
+
+        # Clear existing buildings
+        conn.execute('DELETE FROM buildings WHERE user_id = ?', (user_id,))
+
+        # Insert new buildings
+        for b in buildings:
+            conn.execute('''
+                INSERT INTO buildings (user_id, type, level, col, row)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (user_id, b['type'], b['level'], b['col'], b['row']))
+
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "ok", "message": "Game progress saved"})
+    except Exception as e:
+        conn.close()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+@app.route('/buildings/list', methods=['GET'])
+def list_buildings():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Missing user_id"}), 400
+
+    conn = get_db_connection()
+    rows = conn.execute('SELECT * FROM buildings WHERE user_id = ?', (user_id,)).fetchall()
+    conn.close()
+
+    return jsonify({"status": "ok", "buildings": [dict(row) for row in rows]})
 
 @app.route('/command', methods=['POST'])
 def handle_command():
