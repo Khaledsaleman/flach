@@ -83,53 +83,75 @@ def log_admin_action(action, details):
 @app.route('/admin/data', methods=['POST'])
 def get_admin_data():
     if not is_admin_request(request.json):
-        return jsonify({"error": "Unauthorized"}), 403
+        return jsonify({"status": "error", "error": "Unauthorized"}), 403
 
     # Return game state but maybe truncate logs to last 50
     response_state = game_state.copy()
     response_state["admin_logs"] = game_state["admin_logs"][-50:]
+    response_state["status"] = "ok"
     return jsonify(response_state)
 
 @app.route('/admin/settings', methods=['POST'])
 def update_settings():
     data = request.json
     if not is_admin_request(data):
-        return jsonify({"error": "Unauthorized"}), 403
+        return jsonify({"status": "error", "error": "Unauthorized"}), 403
 
     new_settings = data.get('settings')
     if new_settings:
+        # Basic validation
+        if 'referral_percent' in new_settings:
+            try:
+                new_settings['referral_percent'] = int(new_settings['referral_percent'])
+            except (ValueError, TypeError):
+                return jsonify({"status": "error", "error": "Invalid referral percent"}), 400
+
+        if 'swap_rates' in new_settings:
+            try:
+                for key in new_settings['swap_rates']:
+                    new_settings['swap_rates'][key] = float(new_settings['swap_rates'][key])
+            except (ValueError, TypeError):
+                return jsonify({"status": "error", "error": "Invalid swap rates"}), 400
+
         game_state["settings"].update(new_settings)
         log_admin_action("update_settings", new_settings)
-    return jsonify({"status": "ok", "settings": game_state["settings"]})
+        return jsonify({"status": "ok", "settings": game_state["settings"]})
+
+    return jsonify({"status": "error", "error": "No settings provided"}), 400
 
 @app.route('/admin/users/ban', methods=['POST'])
 def ban_user():
     data = request.json
     if not is_admin_request(data):
-        return jsonify({"error": "Unauthorized"}), 403
+        return jsonify({"status": "error", "error": "Unauthorized"}), 403
 
     target_id = data.get('target_user_id')
+    if not target_id:
+        return jsonify({"status": "error", "error": "Missing target_user_id"}), 400
+
+    target_id = str(target_id)
     ban_status = data.get('ban', True)
-    if target_id:
-        if target_id not in game_state["users"]:
-             game_state["users"][target_id] = {
-                "name": "Unknown",
-                "photo": "",
-                "joined": datetime.utcnow().isoformat(),
-                "banned": False,
-                "completed_tasks": [],
-                "balance": {"gold": 12450, "ton": 24.5, "usdt": 150},
-                "referrer": None
-            }
-        game_state["users"][target_id]["banned"] = ban_status
-        log_admin_action("ban_user" if ban_status else "unban_user", {"target": target_id})
-    return jsonify({"status": "ok"})
+
+    if target_id not in game_state["users"]:
+         game_state["users"][target_id] = {
+            "name": "Unknown",
+            "photo": "",
+            "joined": datetime.utcnow().isoformat(),
+            "banned": False,
+            "completed_tasks": [],
+            "balance": {"gold": 12450, "ton": 24.5, "usdt": 150},
+            "referrer": None
+        }
+
+    game_state["users"][target_id]["banned"] = ban_status
+    log_admin_action("ban_user" if ban_status else "unban_user", {"target": target_id})
+    return jsonify({"status": "ok", "message": f"User {target_id} {'banned' if ban_status else 'unbanned'}"})
 
 @app.route('/admin/users/resources', methods=['POST'])
 def add_resources():
     data = request.json
     if not is_admin_request(data):
-        return jsonify({"error": "Unauthorized"}), 403
+        return jsonify({"status": "error", "error": "Unauthorized"}), 403
 
     target_id = str(data.get('target_user_id'))
     resources = data.get('resources', {})
@@ -138,24 +160,27 @@ def add_resources():
         user = game_state["users"][target_id]
         if "balance" not in user: user["balance"] = {"gold": 12450, "ton": 24.5, "usdt": 150}
 
-        user["balance"]["gold"] += float(resources.get('gold', 0))
-        user["balance"]["ton"] += float(resources.get('ton', 0))
-        user["balance"]["usdt"] += float(resources.get('usdt', 0))
+        try:
+            user["balance"]["gold"] += float(resources.get('gold', 0))
+            user["balance"]["ton"] += float(resources.get('ton', 0))
+            user["balance"]["usdt"] += float(resources.get('usdt', 0))
+        except (ValueError, TypeError):
+             return jsonify({"status": "error", "error": "Invalid resource values"}), 400
 
         log_admin_action("add_resources", {"target": target_id, "amount": resources})
-        return jsonify({"status": "ok"})
+        return jsonify({"status": "ok", "message": "Resources added successfully"})
 
-    return jsonify({"error": "User not found"}), 404
+    return jsonify({"status": "error", "error": "User not found"}), 404
 
 @app.route('/admin/broadcast', methods=['POST'])
 def admin_broadcast():
     data = request.json
     if not is_admin_request(data):
-        return jsonify({"error": "Unauthorized"}), 403
+        return jsonify({"status": "error", "error": "Unauthorized"}), 403
 
     message = data.get('message')
     if not message:
-        return jsonify({"error": "Missing message"}), 400
+        return jsonify({"status": "error", "error": "Missing message"}), 400
 
     success_count = 0
     for user_id in game_state["users"]:
@@ -169,43 +194,51 @@ def admin_broadcast():
             continue
 
     log_admin_action("broadcast", {"count": success_count})
-    return jsonify({"status": "ok", "delivered": success_count})
+    return jsonify({"status": "ok", "message": f"Broadcast sent to {success_count} users", "delivered": success_count})
 
 @app.route('/admin/tasks', methods=['POST'])
 def manage_tasks():
     data = request.json
     if not is_admin_request(data):
-        return jsonify({"error": "Unauthorized"}), 403
+        return jsonify({"status": "error", "error": "Unauthorized"}), 403
 
     action = data.get('action') # add, delete
     task_data = data.get('task')
 
     if action == "add":
+        if not task_data: return jsonify({"status": "error", "error": "Missing task data"}), 400
         task_data["id"] = len(game_state["tasks"]) + 1
         game_state["tasks"].append(task_data)
         log_admin_action("add_task", task_data)
+        return jsonify({"status": "ok", "message": "Task added", "tasks": game_state["tasks"]})
     elif action == "delete":
+        if not task_data or "id" not in task_data: return jsonify({"status": "error", "error": "Missing task ID"}), 400
         game_state["tasks"] = [t for t in game_state["tasks"] if t["id"] != task_data["id"]]
         log_admin_action("delete_task", task_data)
+        return jsonify({"status": "ok", "message": "Task deleted", "tasks": game_state["tasks"]})
 
-    return jsonify({"status": "ok", "tasks": game_state["tasks"]})
+    return jsonify({"status": "error", "error": "Invalid action"}), 400
 
 @app.route('/admin/withdrawals', methods=['POST'])
 def manage_withdrawals():
     data = request.json
     if not is_admin_request(data):
-        return jsonify({"error": "Unauthorized"}), 403
+        return jsonify({"status": "error", "error": "Unauthorized"}), 403
 
     action = data.get('action') # approve, reject
     withdraw_id = data.get('id')
 
+    found = False
     for w in game_state["withdrawals"]:
         if w["id"] == withdraw_id:
             w["status"] = "approved" if action == "approve" else "rejected"
             log_admin_action(f"{action}_withdrawal", {"id": withdraw_id})
+            found = True
             break
 
-    return jsonify({"status": "ok", "withdrawals": game_state["withdrawals"]})
+    if found:
+        return jsonify({"status": "ok", "message": f"Withdrawal {action}d", "withdrawals": game_state["withdrawals"]})
+    return jsonify({"status": "error", "error": "Withdrawal not found"}), 404
 
 @app.route('/check-status', methods=['POST'])
 def check_status():
@@ -263,10 +296,10 @@ def list_tasks():
 def list_referrals():
     user_id = request.args.get('user_id')
     if not user_id:
-        return jsonify({"error": "Missing user_id", "referrals": []}), 400
+        return jsonify({"status": "error", "error": "Missing user_id", "referrals": []}), 400
 
     user_id = str(user_id)
-    print(f"Fetching referrals for user: {user_id}") # Debug log
+    print(f"Fetching referrals for user: {user_id}")
 
     # Find all users referred by this user
     referrals = []
@@ -276,7 +309,7 @@ def list_referrals():
             ref_id = str(udata.get("referrer")) if udata.get("referrer") else None
             if ref_id == user_id:
                 referrals.append({
-                    "id": uid,
+                    "id": str(uid),
                     "name": udata.get("name", "Unknown"),
                     "photo": udata.get("photo", ""),
                     "gold": udata.get("balance", {}).get("gold", 0)
@@ -284,11 +317,10 @@ def list_referrals():
 
         # Sort by gold descending
         referrals.sort(key=lambda x: x.get("gold", 0), reverse=True)
+        return jsonify({"status": "ok", "referrals": referrals})
     except Exception as e:
         print(f"Error in list_referrals: {e}")
-        return jsonify({"error": "Internal Server Error", "referrals": []}), 500
-
-    return jsonify({"status": "ok", "referrals": referrals})
+        return jsonify({"status": "error", "error": "Internal Server Error", "referrals": []}), 500
 
 @app.route('/tasks/verify', methods=['POST'])
 def verify_task():

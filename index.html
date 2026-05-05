@@ -466,7 +466,7 @@
     tg.setHeaderColor('#0a0a1a'); tg.setBackgroundColor('#0a0a1a');
 
     // CONFIG: Backend URL
-    const BACKEND_URL = "http://localhost:5000";
+    let BACKEND_URL = "http://localhost:5000";
     const ADMIN_ID = 2003253093;
     let adminData = null;
 
@@ -488,12 +488,14 @@
             });
             const data = await response.json();
             if (data.status === "ok") {
-                showToast('تمت العملية بنجاح', 'success');
+                showToast(data.message || 'تمت العملية بنجاح', 'success');
                 refreshAdminData();
+            } else {
+                showToast(data.error || 'فشلت العملية', 'error');
             }
         } catch (e) {
             console.error("Admin action failed:", e);
-            showToast('خطأ في العملية', 'error');
+            showToast('خطأ في الاتصال بالسيرفر', 'error');
         }
     }
 
@@ -770,7 +772,13 @@
     function renderReferrals(referrals) {
         const container = document.getElementById('referralList');
         if (!referrals || referrals.length === 0) {
-            container.innerHTML = '<div class="text-center py-10 opacity-50 text-xs italic">لا يوجد أصدقاء مدعوون بعد</div>';
+            container.innerHTML = `
+                <div class="text-center py-12 px-4">
+                    <div class="text-4xl mb-4">🤝</div>
+                    <div class="text-sm text-white mb-2 font-bold">لا يوجد إحالات حتى الآن</div>
+                    <div class="text-[11px] text-gray-400">قم بدعوة أصدقائك لربح المكافآت والحصول على 10% من أرباحهم!</div>
+                </div>
+            `;
             return;
         }
 
