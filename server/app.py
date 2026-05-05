@@ -210,7 +210,11 @@ def manage_withdrawals():
 @app.route('/check-status', methods=['POST'])
 def check_status():
     data = request.json
+    if not data or 'user_id' not in data:
+        return jsonify({"error": "Missing user_id"}), 400
+
     user_id = str(data.get('user_id'))
+    referrer = str(data.get('referrer')) if data.get('referrer') else None
 
     # Register user if not exists
     if user_id not in game_state["users"]:
@@ -221,14 +225,14 @@ def check_status():
             "banned": False,
             "completed_tasks": [],
             "balance": {"gold": 12450, "ton": 24.5, "usdt": 150},
-            "referrer": data.get('referrer')
+            "referrer": referrer
         }
 
     user = game_state["users"][user_id]
 
     # Update user data if changed
-    user["name"] = data.get('username', user["name"])
-    user["photo"] = data.get('photo', user.get("photo"))
+    user["name"] = data.get('username', user.get("name", "Player"))
+    user["photo"] = data.get('photo', user.get("photo", ""))
 
     return jsonify({
         "maintenance": game_state["settings"]["maintenance_mode"],
@@ -261,10 +265,13 @@ def list_referrals():
     if not user_id:
         return jsonify({"error": "Missing user_id"}), 400
 
+    user_id = str(user_id)
+
     # Find all users referred by this user
     referrals = []
     for uid, udata in game_state["users"].items():
-        if udata.get("referrer") == user_id:
+        # Ensure we compare strings
+        if str(udata.get("referrer")) == user_id:
             referrals.append({
                 "id": uid,
                 "name": udata.get("name", "Unknown"),

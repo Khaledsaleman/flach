@@ -173,6 +173,18 @@
 </head>
 <body>
 
+<!-- Login Guard Overlay -->
+<div id="loginGuard" class="hidden fixed inset-0 z-[100] bg-[#0a0a1a] flex flex-col items-center justify-center p-8 text-center">
+    <div class="w-24 h-24 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center mb-6 shadow-lg glow-gold">
+        <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+    </div>
+    <h1 class="font-orbitron text-2xl text-amber-400 mb-4">الدخول مطلوب</h1>
+    <p class="text-gray-300 mb-8 leading-relaxed">عذراً، يجب تسجيل الدخول عبر تطبيق تيليجرام الرسمي لتتمكن من لعب CryptoClash والوصول إلى حسابك.</p>
+    <a href="https://t.me/ClashofCrypto_bot" class="btn-primary px-8 py-3 rounded-xl font-bold text-black shadow-lg transition-transform active:scale-95">
+        انتقل إلى البوت الآن 🤖
+    </a>
+</div>
+
 <div id="appLayout">
 
     <!-- HEADER -->
@@ -608,12 +620,20 @@
                 img.src = serverUser.photo;
                 img.classList.remove('hidden');
                 document.getElementById('userInitial').classList.add('hidden');
+                img.onerror = () => {
+                    img.classList.add('hidden');
+                    document.getElementById('userInitial').classList.remove('hidden');
+                };
 
                 // Update Header Photo
                 const hImg = document.getElementById('headerPhoto');
                 hImg.src = serverUser.photo;
                 hImg.classList.remove('hidden');
                 document.getElementById('headerInitial').classList.add('hidden');
+                hImg.onerror = () => {
+                    hImg.classList.add('hidden');
+                    document.getElementById('headerInitial').classList.remove('hidden');
+                };
             } else {
                 document.getElementById('userInitial').textContent = display_name[0];
                 document.getElementById('headerInitial').textContent = display_name[0];
@@ -720,16 +740,24 @@
     }
 
     async function openReferralsModal() {
+        const container = document.getElementById('referralList');
+        container.innerHTML = '<div class="text-center py-10 opacity-50 text-xs italic">جاري تحميل البيانات...</div>';
         document.getElementById('referralsModal').classList.remove('hidden');
+
         const user = tg.initDataUnsafe?.user;
-        if (!user) return;
+        if (!user) {
+            container.innerHTML = '<div class="text-center py-10 text-red-400 text-xs italic">يجب الدخول عبر تيليجرام</div>';
+            return;
+        }
 
         try {
             const response = await fetch(`${BACKEND_URL}/referrals/list?user_id=${user.id}`);
+            if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
             renderReferrals(data.referrals);
         } catch (e) {
             console.error("Fetch referrals failed:", e);
+            container.innerHTML = '<div class="text-center py-10 text-red-400 text-xs italic">خطأ في تحميل البيانات</div>';
             showToast('خطأ في تحميل البيانات', 'error');
         }
     }
@@ -743,20 +771,23 @@
 
         container.innerHTML = referrals.map((ref, index) => {
             const initial = ref.name ? ref.name[0] : '?';
-            const photoHtml = ref.photo
-                ? `<img src="${ref.photo}" class="w-10 h-10 rounded-full object-cover border border-white/10 shadow-sm">`
+            const photoHtml = ref.photo && ref.photo !== ""
+                ? `<img src="${ref.photo}" class="w-10 h-10 rounded-full object-cover border border-white/10 shadow-sm" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                   <div class="hidden w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 items-center justify-center text-sm font-bold border border-white/10 shadow-sm">${initial}</div>`
                 : `<div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm font-bold border border-white/10 shadow-sm">${initial}</div>`;
 
             return `
                 <div class="glass p-3 rounded-xl flex items-center gap-3 border border-white/5 shadow-sm">
                     <div class="text-[10px] font-orbitron text-gray-500 w-4 text-center">#${index + 1}</div>
-                    ${photoHtml}
-                    <div class="flex-1 min-w-0">
+                    <div class="relative w-10 h-10">
+                        ${photoHtml}
+                    </div>
+                    <div class="flex-1 min-w-0 text-right">
                         <div class="text-sm font-medium text-white truncate">${ref.name}</div>
                         <div class="text-[10px] text-gray-400">لاعب نشط</div>
                     </div>
-                    <div class="text-right">
-                        <div class="text-[10px] text-amber-400 font-bold font-orbitron">${ref.gold.toLocaleString()}</div>
+                    <div class="text-left">
+                        <div class="text-[10px] text-amber-400 font-bold font-orbitron">${(ref.gold || 0).toLocaleString()}</div>
                         <div class="text-[8px] text-gray-500">ذهب</div>
                     </div>
                 </div>
@@ -1128,9 +1159,38 @@
 
     // Core
     document.addEventListener('DOMContentLoaded', () => {
+        const user = tg.initDataUnsafe?.user;
+
+        if (!user) {
+            document.getElementById('loginGuard').classList.remove('hidden');
+            document.getElementById('appLayout').classList.add('hidden');
+            return;
+        }
+
         updateUI(); startEnergyRegen(); checkDailyReset();
+
+        // Immediate UI Update from Telegram Data
+        const display_name = user.first_name + (user.last_name ? ' ' + user.last_name : '');
+        document.getElementById('headerName').textContent = display_name;
+        document.getElementById('welcomeMsg').textContent = `مرحباً ${display_name}!`;
+        document.getElementById('userInitial').textContent = display_name[0];
+        document.getElementById('headerInitial').textContent = display_name[0];
+
+        if (user.photo_url) {
+            const hImg = document.getElementById('headerPhoto');
+            hImg.src = user.photo_url;
+            hImg.classList.remove('hidden');
+            document.getElementById('headerInitial').classList.add('hidden');
+
+            const uImg = document.getElementById('userPhoto');
+            uImg.src = user.photo_url;
+            uImg.classList.remove('hidden');
+            document.getElementById('userInitial').classList.add('hidden');
+        }
+
         checkUserStatus();
-        const userName = tg.initDataUnsafe?.user?.first_name || 'لاعب';
+
+        const userName = user.first_name || 'لاعب';
         // Profile text is now updated inside checkUserStatus() once data is loaded
         sendTelegramNotification(`🎮 <b>سجل اللاعب ${userName} دخوله الآن!</b>`);
     });
