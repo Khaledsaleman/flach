@@ -255,6 +255,28 @@ def list_tasks():
 
     return jsonify({"tasks": tasks})
 
+@app.route('/referrals/list', methods=['GET'])
+def list_referrals():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Missing user_id"}), 400
+
+    # Find all users referred by this user
+    referrals = []
+    for uid, udata in game_state["users"].items():
+        if udata.get("referrer") == user_id:
+            referrals.append({
+                "id": uid,
+                "name": udata.get("name", "Unknown"),
+                "photo": udata.get("photo", ""),
+                "gold": udata.get("balance", {}).get("gold", 0)
+            })
+
+    # Sort by gold descending
+    referrals.sort(key=lambda x: x["gold"], reverse=True)
+
+    return jsonify({"referrals": referrals})
+
 @app.route('/tasks/verify', methods=['POST'])
 def verify_task():
     data = request.json
