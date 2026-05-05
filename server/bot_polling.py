@@ -34,11 +34,19 @@ def handle_update(update):
     user_id = str(message["from"]["id"])
 
     if text.startswith("/start"):
+        parts = text.split()
+        referrer = parts[1] if len(parts) > 1 else None
+
         welcome_text = (
             "🏰 <b>مرحباً بك في عالم CryptoClash!</b>\n\n"
             "الآن يمكنك بناء إمبراطوريتك، تطوير قاعدتك، والمنافسة في أقوى تحديات الكريبتو.\n\n"
-            "اضغط على الزر أدناه للدخول إلى اللعبة والبدء في المغامرة:"
         )
+
+        if referrer:
+            welcome_text += f"🤝 لقد انضممت عبر دعوة صديق (ID: {referrer})!\n\n"
+
+        welcome_text += "اضغط على الزر أدناه للدخول إلى اللعبة والبدء في المغامرة:"
+
         reply_markup = {
             "inline_keyboard": [[
                 {"text": "🎮 ابدأ اللعب الآن", "web_app": {"url": "https://khaledsaleman.github.io/flach/"}}
