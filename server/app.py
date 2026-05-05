@@ -84,7 +84,11 @@ def log_admin_action(action, details):
 def get_admin_data():
     if not is_admin_request(request.json):
         return jsonify({"error": "Unauthorized"}), 403
-    return jsonify(game_state)
+
+    # Return game state but maybe truncate logs to last 50
+    response_state = game_state.copy()
+    response_state["admin_logs"] = game_state["admin_logs"][-50:]
+    return jsonify(response_state)
 
 @app.route('/admin/settings', methods=['POST'])
 def update_settings():
@@ -108,10 +112,64 @@ def ban_user():
     ban_status = data.get('ban', True)
     if target_id:
         if target_id not in game_state["users"]:
-            game_state["users"][target_id] = {"name": "Unknown", "joined": datetime.utcnow().isoformat()}
+             game_state["users"][target_id] = {
+                "name": "Unknown",
+                "photo": "",
+                "joined": datetime.utcnow().isoformat(),
+                "banned": False,
+                "completed_tasks": [],
+                "balance": {"gold": 12450, "ton": 24.5, "usdt": 150},
+                "referrer": None
+            }
         game_state["users"][target_id]["banned"] = ban_status
         log_admin_action("ban_user" if ban_status else "unban_user", {"target": target_id})
     return jsonify({"status": "ok"})
+
+@app.route('/admin/users/resources', methods=['POST'])
+def add_resources():
+    data = request.json
+    if not is_admin_request(data):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    target_id = str(data.get('target_user_id'))
+    resources = data.get('resources', {})
+
+    if target_id in game_state["users"]:
+        user = game_state["users"][target_id]
+        if "balance" not in user: user["balance"] = {"gold": 12450, "ton": 24.5, "usdt": 150}
+
+        user["balance"]["gold"] += float(resources.get('gold', 0))
+        user["balance"]["ton"] += float(resources.get('ton', 0))
+        user["balance"]["usdt"] += float(resources.get('usdt', 0))
+
+        log_admin_action("add_resources", {"target": target_id, "amount": resources})
+        return jsonify({"status": "ok"})
+
+    return jsonify({"error": "User not found"}), 404
+
+@app.route('/admin/broadcast', methods=['POST'])
+def admin_broadcast():
+    data = request.json
+    if not is_admin_request(data):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    message = data.get('message')
+    if not message:
+        return jsonify({"error": "Missing message"}), 400
+
+    success_count = 0
+    for user_id in game_state["users"]:
+        try:
+            url = f"{TELEGRAM_API_URL}/sendMessage"
+            payload = {"chat_id": user_id, "text": message, "parse_mode": "HTML"}
+            res = requests.post(url, json=payload)
+            if res.json().get("ok"):
+                success_count += 1
+        except Exception:
+            continue
+
+    log_admin_action("broadcast", {"count": success_count})
+    return jsonify({"status": "ok", "delivered": success_count})
 
 @app.route('/admin/tasks', methods=['POST'])
 def manage_tasks():
@@ -196,6 +254,28 @@ def list_tasks():
         tasks.append(task_copy)
 
     return jsonify({"tasks": tasks})
+
+@app.route('/referrals/list', methods=['GET'])
+def list_referrals():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Missing user_id"}), 400
+
+    # Find all users referred by this user
+    referrals = []
+    for uid, udata in game_state["users"].items():
+        if udata.get("referrer") == user_id:
+            referrals.append({
+                "id": uid,
+                "name": udata.get("name", "Unknown"),
+                "photo": udata.get("photo", ""),
+                "gold": udata.get("balance", {}).get("gold", 0)
+            })
+
+    # Sort by gold descending
+    referrals.sort(key=lambda x: x["gold"], reverse=True)
+
+    return jsonify({"referrals": referrals})
 
 @app.route('/tasks/verify', methods=['POST'])
 def verify_task():

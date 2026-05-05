@@ -179,9 +179,12 @@
     <header id="appHeader" class="glass-dark px-3 py-2.5">
         <div class="flex items-center justify-between mb-1.5">
             <div class="flex items-center gap-2">
-                <div class="w-7 h-7 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center font-bold text-white text-xs">C</div>
+                <div id="headerPhotoContainer" class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center font-bold text-white text-xs border border-white/20 overflow-hidden">
+                    <span id="headerInitial">C</span>
+                    <img id="headerPhoto" src="" class="hidden w-full h-full object-cover">
+                </div>
                 <div>
-                    <div class="font-orbitron text-[11px] text-amber-400">CryptoClash</div>
+                    <div class="font-orbitron text-[11px] text-amber-400" id="headerName">اللاعب</div>
                     <div class="text-[9px] text-gray-400" id="playerRank">الرتبة: برونزي III</div>
                 </div>
             </div>
@@ -292,11 +295,16 @@
                 </div>
 
                 <div class="mt-6 glass p-4 rounded-xl">
-                    <h2 class="font-orbitron text-sm text-white mb-2">👥 دعوة الأصدقاء</h2>
+                    <h2 class="font-orbitron text-sm text-white mb-2">👥 نظام الإحالات</h2>
                     <p class="text-[10px] text-gray-400 mb-3">احصل على 10% من أرباح أصدقائك للأبد!</p>
-                    <button onclick="copyReferralLink()" class="w-full btn-primary py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2">
-                        <span>🔗 نسخ رابط الدعوة</span>
-                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="copyReferralLink()" class="flex-1 btn-primary py-2.5 rounded-lg text-xs font-medium flex items-center justify-center gap-2">
+                            <span>🔗 نسخ الرابط</span>
+                        </button>
+                        <button onclick="openReferralsModal()" class="flex-1 btn-secondary py-2.5 rounded-lg text-xs font-medium flex items-center justify-center gap-2">
+                            <span>👥 عرض الإحالات</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -309,10 +317,21 @@
                     <!-- Users Management -->
                     <div class="glass p-4 rounded-xl">
                         <h2 class="font-medium text-white mb-3 flex items-center gap-2"><span class="text-blue-400">👥</span> إدارة المستخدمين</h2>
-                        <div class="flex gap-2 mb-3">
-                            <input type="text" id="targetUserId" placeholder="Telegram ID" class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
-                            <button onclick="adminAction('ban_user', {target_user_id: document.getElementById('targetUserId').value, ban: true})" class="btn-danger px-4 py-2 rounded-lg text-xs">حظر</button>
-                            <button onclick="adminAction('ban_user', {target_user_id: document.getElementById('targetUserId').value, ban: false})" class="btn-primary px-4 py-2 rounded-lg text-xs">فك الحظر</button>
+                        <div class="space-y-3">
+                            <div class="flex gap-2">
+                                <input type="text" id="targetUserId" placeholder="Telegram ID" class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                <button onclick="adminAction('ban_user', {target_user_id: document.getElementById('targetUserId').value, ban: true})" class="btn-danger px-4 py-2 rounded-lg text-xs">حظر</button>
+                                <button onclick="adminAction('ban_user', {target_user_id: document.getElementById('targetUserId').value, ban: false})" class="btn-primary px-4 py-2 rounded-lg text-xs">فك الحظر</button>
+                            </div>
+                            <div class="space-y-2 pt-2 border-t border-white/5">
+                                <p class="text-[10px] text-gray-400">إضافة موارد للمستخدم:</p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="number" id="adminGoldAdd" placeholder="Gold" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                    <input type="number" id="adminTonAdd" placeholder="TON" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                </div>
+                                <input type="number" id="adminUsdtAdd" placeholder="USDT" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                <button onclick="adminAddResources()" class="w-full btn-secondary py-2 rounded-lg text-xs">إرسال الموارد</button>
+                            </div>
                         </div>
                     </div>
                     <!-- System Controls -->
@@ -369,6 +388,23 @@
                             <button onclick="addNewTask()" class="w-full btn-primary py-2 rounded-lg text-xs">إضافة المهمة</button>
                         </div>
                     </div>
+
+                    <!-- Broadcast -->
+                    <div class="glass p-4 rounded-xl">
+                        <h2 class="font-medium text-white mb-3 flex items-center gap-2"><span class="text-purple-400">📢</span> رسالة جماعية</h2>
+                        <div class="space-y-2">
+                            <textarea id="broadcastMsg" rows="3" placeholder="اكتب رسالتك هنا..." class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm"></textarea>
+                            <button onclick="adminBroadcast()" class="w-full btn-secondary py-2 rounded-lg text-xs">إرسال للجميع</button>
+                        </div>
+                    </div>
+
+                    <!-- Logs -->
+                    <div class="glass p-4 rounded-xl">
+                        <h2 class="font-medium text-white mb-3 flex items-center gap-2"><span class="text-gray-400">📜</span> سجل النشاط</h2>
+                        <div id="adminLogs" class="max-h-40 overflow-y-auto space-y-1 text-[9px] font-mono opacity-80">
+                            <!-- Logs will be loaded here -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -394,6 +430,19 @@
 <div id="walletModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center"><div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5" style="animation:slideUp 0.3s ease"><div class="flex items-center justify-between mb-3"><h3 class="font-orbitron text-lg text-amber-400">💰 المحفظة</h3><button onclick="closeModal('walletModal')" class="p-2 rounded-lg hover:bg-white/10">✕</button></div><div class="space-y-3"><div class="p-3 bg-white/5 rounded-lg"><div class="text-sm text-gray-400">محفظة TON</div><div class="font-orbitron text-sm text-blue-400">24.5 TON</div></div><div class="p-3 bg-white/5 rounded-lg"><div class="text-sm text-gray-400">محفظة USDT</div><div class="font-orbitron text-sm text-green-400">150 USDT</div></div></div></div></div>
 
 <div id="settingsModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center"><div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5" style="animation:slideUp 0.3s ease"><div class="flex items-center justify-between mb-3"><h3 class="font-orbitron text-lg text-gray-300">⚙️ الإعدادات</h3><button onclick="closeModal('settingsModal')" class="p-2 rounded-lg hover:bg-white/10">✕</button></div><div class="space-y-3"><div class="flex items-center justify-between p-3 bg-white/5 rounded-lg"><span>الإشعارات</span><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" checked><div class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div></label></div><button onclick="closeModal('settingsModal')" class="w-full btn-danger py-2 rounded-lg text-sm font-medium text-white">إغلاق</button></div></div></div>
+
+<div id="referralsModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center">
+    <div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5 max-h-[80vh] flex flex-col" style="animation:slideUp 0.3s ease">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-orbitron text-lg text-blue-400">👥 قائمة الإحالات</h3>
+            <button onclick="closeModal('referralsModal')" class="p-2 rounded-lg hover:bg-white/10">✕</button>
+        </div>
+        <div id="referralList" class="flex-1 overflow-y-auto space-y-3 scrollbar-hide">
+            <!-- Referral items will be loaded here -->
+            <div class="text-center py-10 opacity-50 text-xs">جاري تحميل البيانات...</div>
+        </div>
+    </div>
+</div>
 
 <div id="toastContainer" class="fixed top-4 left-4 right-4 max-w-md mx-auto z-50 space-y-2 pointer-events-none"></div>
 
@@ -458,6 +507,15 @@
         const marketBtn = document.getElementById('marketToggleBtn');
         marketBtn.textContent = adminData.settings.market_enabled ? 'إيقاف السوق' : 'تشغيل السوق';
 
+        const logsCont = document.getElementById('adminLogs');
+        logsCont.innerHTML = adminData.admin_logs.map(log => `
+            <div class="border-b border-white/5 pb-1">
+                <span class="text-blue-400">[${log.action}]</span>
+                <span class="text-gray-500">${new Date(log.timestamp).toLocaleTimeString()}</span>:
+                ${JSON.stringify(log.details)}
+            </div>
+        `).reverse().join('');
+
         document.getElementById('rateTon').value = adminData.settings.swap_rates.gold_to_ton;
         document.getElementById('rateUsdt').value = adminData.settings.swap_rates.gold_to_usdt;
         document.getElementById('refPercent').value = adminData.settings.referral_percent;
@@ -477,6 +535,26 @@
             action: 'add',
             task: { title, link, chat_id: chatId, reward, type: chatId ? 'telegram' : 'link' }
         });
+    }
+
+    function adminAddResources() {
+        const targetId = document.getElementById('targetUserId').value;
+        const gold = parseFloat(document.getElementById('adminGoldAdd').value) || 0;
+        const ton = parseFloat(document.getElementById('adminTonAdd').value) || 0;
+        const usdt = parseFloat(document.getElementById('adminUsdtAdd').value) || 0;
+
+        if (!targetId) { showToast('يرجى إدخال معرف المستخدم', 'error'); return; }
+
+        adminAction('users/resources', {
+            target_user_id: targetId,
+            resources: { gold, ton, usdt }
+        });
+    }
+
+    function adminBroadcast() {
+        const msg = document.getElementById('broadcastMsg').value;
+        if (!msg) { showToast('اكتب رسالة أولاً', 'error'); return; }
+        adminAction('broadcast', { message: msg });
     }
 
     function toggleMaintenance() {
@@ -518,15 +596,34 @@
             }
 
             // Update profile UI
-            if (user.photo_url) {
+            const serverUser = status.user;
+            const display_name = serverUser.name || user.first_name || 'اللاعب';
+
+            document.getElementById('headerName').textContent = display_name;
+            document.getElementById('welcomeMsg').textContent = `مرحباً ${display_name}!`;
+
+            if (serverUser.photo) {
+                // Update Home Tab Photo
                 const img = document.getElementById('userPhoto');
-                img.src = user.photo_url;
+                img.src = serverUser.photo;
                 img.classList.remove('hidden');
                 document.getElementById('userInitial').classList.add('hidden');
+
+                // Update Header Photo
+                const hImg = document.getElementById('headerPhoto');
+                hImg.src = serverUser.photo;
+                hImg.classList.remove('hidden');
+                document.getElementById('headerInitial').classList.add('hidden');
             } else {
-                document.getElementById('userInitial').textContent = user.first_name[0];
+                document.getElementById('userInitial').textContent = display_name[0];
+                document.getElementById('headerInitial').textContent = display_name[0];
+
+                // Hide images if they were previously shown
+                document.getElementById('userPhoto').classList.add('hidden');
+                document.getElementById('headerPhoto').classList.add('hidden');
+                document.getElementById('userInitial').classList.remove('hidden');
+                document.getElementById('headerInitial').classList.remove('hidden');
             }
-            document.getElementById('welcomeMsg').textContent = `مرحباً ${user.first_name}!`;
 
             if (String(user.id) === String(ADMIN_ID)) {
                 document.getElementById('adminNavBtn').classList.remove('hidden');
@@ -550,58 +647,121 @@
         container.innerHTML = '';
         tasks.forEach(t => {
             const card = document.createElement('div');
-            card.className = `glass p-4 rounded-xl flex items-center gap-4 ${t.completed ? 'opacity-50' : ''}`;
+            card.className = `glass p-4 rounded-xl flex flex-col gap-3 ${t.completed ? 'opacity-50' : ''}`;
 
-            const rewardType = Object.keys(t.reward)[0];
-            const rewardAmount = t.reward[rewardType];
+            const rewards = Object.entries(t.reward).map(([asset, amount]) =>
+                `<span class="text-[10px] text-amber-400 font-bold">+${amount} ${asset.toUpperCase()}</span>`
+            ).join(' | ');
+
             const icon = t.type === 'telegram' ? '📢' : '🔗';
 
+            let actionButtons = '';
+            if (t.completed) {
+                actionButtons = `<button class="w-full bg-white/10 text-gray-400 py-2 rounded-lg text-xs font-medium cursor-default">تم الإكمال ✅</button>`;
+            } else if (t.type === 'telegram') {
+                actionButtons = `
+                    <div class="flex gap-2">
+                        <button onclick="tg.openTelegramLink('${t.link}')" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-xs font-medium">انضمام</button>
+                        <button onclick="verifyTaskCompletion(${t.id})" class="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-medium">تحقق</button>
+                    </div>
+                `;
+            } else {
+                actionButtons = `<button onclick="handleGeneralTask(${t.id}, '${t.link}')" class="w-full bg-blue-500 text-white py-2 rounded-lg text-xs font-medium">تنفيذ المهمة</button>`;
+            }
+
             card.innerHTML = `
-                <div class="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-2xl">${icon}</div>
-                <div class="flex-1">
-                    <h3 class="text-sm font-medium text-white">${t.title}</h3>
-                    <div class="flex items-center gap-1 mt-1">
-                        <span class="text-[10px] text-amber-400 font-bold">+${rewardAmount} ${rewardType.toUpperCase()}</span>
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center text-2xl shadow-inner border border-white/5">${icon}</div>
+                    <div class="flex-1">
+                        <h3 class="text-sm font-medium text-white leading-tight">${t.title}</h3>
+                        <div class="flex items-center gap-1 mt-1">${rewards}</div>
                     </div>
                 </div>
-                <button onclick="${t.completed ? '' : `handleTask(${t.id}, '${t.link}')`}"
-                    class="px-4 py-1.5 rounded-lg text-xs font-medium ${t.completed ? 'bg-gray-500/20 text-gray-400' : 'bg-blue-500 text-white'}">
-                    ${t.completed ? 'تم الإكمال' : 'تنفيذ'}
-                </button>
+                ${actionButtons}
             `;
             container.appendChild(card);
         });
     }
 
-    async function handleTask(taskId, link) {
+    async function handleGeneralTask(taskId, link) {
         tg.openLink(link);
         showToast('جاري التحقق من المهمة...', 'info');
-        setTimeout(async () => {
-            const user = tg.initDataUnsafe?.user;
-            try {
-                const response = await fetch(`${BACKEND_URL}/tasks/verify`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: user.id, task_id: taskId })
-                });
-                const data = await response.json();
-                if (data.status === 'ok') {
-                    showToast('تم إكمال المهمة! 🎉', 'success');
-                    loadTasks();
-                    checkUserStatus(); // Refresh balance
-                } else {
-                    showToast(data.error || 'فشل التحقق', 'error');
-                }
-            } catch (e) { showToast('خطأ في الاتصال', 'error'); }
-        }, 3000);
+        setTimeout(() => verifyTaskCompletion(taskId), 3000);
     }
+
+    async function verifyTaskCompletion(taskId) {
+        const user = tg.initDataUnsafe?.user;
+        if (!user) return;
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/tasks/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id, task_id: taskId, initData: tg.initData })
+            });
+            const data = await response.json();
+            if (data.status === 'ok') {
+                showToast('تم إكمال المهمة! 🎉', 'success');
+                loadTasks();
+                checkUserStatus(); // Refresh balance
+            } else {
+                showToast(data.error || 'فشل التحقق، تأكد من تنفيذ المهمة', 'error');
+            }
+        } catch (e) { showToast('خطأ في الاتصال بالسيرفر', 'error'); }
+    }
+
 
     function copyReferralLink() {
         const user = tg.initDataUnsafe?.user;
         if (!user) return;
-        const link = `https://t.me/CryptoClashBot?start=${user.id}`;
+        const link = `https://t.me/ClashofCrypto_bot?start=${user.id}`;
         navigator.clipboard.writeText(link);
         showToast('تم نسخ رابط الدعوة!', 'success');
+    }
+
+    async function openReferralsModal() {
+        document.getElementById('referralsModal').classList.remove('hidden');
+        const user = tg.initDataUnsafe?.user;
+        if (!user) return;
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/referrals/list?user_id=${user.id}`);
+            const data = await response.json();
+            renderReferrals(data.referrals);
+        } catch (e) {
+            console.error("Fetch referrals failed:", e);
+            showToast('خطأ في تحميل البيانات', 'error');
+        }
+    }
+
+    function renderReferrals(referrals) {
+        const container = document.getElementById('referralList');
+        if (!referrals || referrals.length === 0) {
+            container.innerHTML = '<div class="text-center py-10 opacity-50 text-xs italic">لا يوجد أصدقاء مدعوون بعد</div>';
+            return;
+        }
+
+        container.innerHTML = referrals.map((ref, index) => {
+            const initial = ref.name ? ref.name[0] : '?';
+            const photoHtml = ref.photo
+                ? `<img src="${ref.photo}" class="w-10 h-10 rounded-full object-cover border border-white/10 shadow-sm">`
+                : `<div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm font-bold border border-white/10 shadow-sm">${initial}</div>`;
+
+            return `
+                <div class="glass p-3 rounded-xl flex items-center gap-3 border border-white/5 shadow-sm">
+                    <div class="text-[10px] font-orbitron text-gray-500 w-4 text-center">#${index + 1}</div>
+                    ${photoHtml}
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-medium text-white truncate">${ref.name}</div>
+                        <div class="text-[10px] text-gray-400">لاعب نشط</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] text-amber-400 font-bold font-orbitron">${ref.gold.toLocaleString()}</div>
+                        <div class="text-[8px] text-gray-500">ذهب</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     async function sendTelegramNotification(message) {
