@@ -48,6 +48,8 @@
             touch-action: none; cursor: grab;
             border-radius: 12px;
             border: 1px solid rgba(255,255,255,0.08);
+            margin: 0 auto;
+            display: block;
         }
         #mapContainer:active { cursor: grabbing; }
 
@@ -332,8 +334,8 @@
                         <div class="space-y-3">
                             <div class="flex gap-2">
                                 <input type="text" id="targetUserId" placeholder="Telegram ID" class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
-                                <button onclick="adminAction('ban_user', {target_user_id: document.getElementById('targetUserId').value, ban: true})" class="btn-danger px-4 py-2 rounded-lg text-xs">حظر</button>
-                                <button onclick="adminAction('ban_user', {target_user_id: document.getElementById('targetUserId').value, ban: false})" class="btn-primary px-4 py-2 rounded-lg text-xs">فك الحظر</button>
+                                <button onclick="adminAction('users/ban', {target_user_id: document.getElementById('targetUserId').value, ban: true})" class="btn-danger px-4 py-2 rounded-lg text-xs">حظر</button>
+                                <button onclick="adminAction('users/ban', {target_user_id: document.getElementById('targetUserId').value, ban: false})" class="btn-primary px-4 py-2 rounded-lg text-xs">فك الحظر</button>
                             </div>
                             <div class="space-y-2 pt-2 border-t border-white/5">
                                 <p class="text-[10px] text-gray-400">إضافة موارد للمستخدم:</p>
@@ -752,9 +754,12 @@
 
         try {
             const response = await fetch(`${BACKEND_URL}/referrals/list?user_id=${user.id}`);
-            if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
-            renderReferrals(data.referrals);
+            if (data.status === "ok") {
+                renderReferrals(data.referrals);
+            } else {
+                throw new Error(data.error || 'Server error');
+            }
         } catch (e) {
             console.error("Fetch referrals failed:", e);
             container.innerHTML = '<div class="text-center py-10 text-red-400 text-xs italic">خطأ في تحميل البيانات</div>';
@@ -937,17 +942,22 @@
         const availH = centralArea.clientHeight || 600;
         console.log(`Available dimensions: ${availW}x${availH}`);
 
-        // نسبة 2:3 للهاتف
+        // Responsive Scaling for Mobile (2:3 Ratio)
         let cw, ch;
-        if (availW / availH > 2/3) {
-            ch = availH - 20;
-            cw = ch * (2/3);
+        const targetRatio = 2/3;
+        const currentRatio = availW / availH;
+
+        if (currentRatio > targetRatio) {
+            ch = availH - 10;
+            cw = ch * targetRatio;
         } else {
-            cw = availW - 20;
-            ch = cw * (3/2);
+            cw = availW - 10;
+            ch = cw / targetRatio;
+            if (ch > availH - 10) {
+                ch = availH - 10;
+                cw = ch * targetRatio;
+            }
         }
-        cw = Math.min(cw, availW - 10);
-        ch = Math.min(ch, availH - 10);
 
         container.style.width = cw + 'px';
         container.style.height = ch + 'px';
@@ -1030,10 +1040,40 @@
 
         container.addEventListener('pointerdown', e => {
             if (e.target.closest('.base-building') || e.target.closest('.zoom-btn') || e.target.closest('#toggleBuildBtn')) return;
-            mapState.dragging = true;
-            mapState.sx = e.clientX; mapState.sy = e.clientY;
-            mapState.smx = mapState.x; mapState.smy = mapState.y;
+            if (buildMode && selectedBuildType) {
+                e.preventDefault();
+                updateGhost(e);
+            } else {
+                mapState.dragging = true;
+                mapState.sx = e.clientX; mapState.sy = e.clientY;
+                mapState.smx = mapState.x; mapState.smy = mapState.y;
+            }
         });
+
+        function updateGhost(e) {
+            const rect = container.getBoundingClientRect();
+            const mx = (e.clientX - rect.left - mapState.x) / mapState.zoom;
+            const my = (e.clientY - rect.top - mapState.y) / mapState.zoom;
+            const col = Math.floor(mx / GS), row = Math.floor(my / GS);
+            const def = BDEFS[selectedBuildType];
+            const bCol = def.w / GS, bRow = def.h / GS;
+            if (col >= 0 && row >= 0 && col + bCol <= COLS && row + bRow <= ROWS) {
+                const valid = isAreaBuildable(col, row, bCol, bRow);
+                ghost.style.display = 'block';
+                ghost.style.left = (col*GS) + 'px';
+                ghost.style.top = (row*GS) + 'px';
+                ghost.style.width = (bCol*GS) + 'px';
+                ghost.style.height = (bRow*GS) + 'px';
+                ghost.style.borderColor = valid ? '#22c55e' : '#ef4444';
+                ghost.style.background = valid ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.25)';
+                cellInfo.textContent = valid ? '✅ خلية صالحة للبناء' : '❌ غير صالحة';
+                cellInfo.style.color = valid ? '#4ade80' : '#f87171';
+                cellInfo.classList.add('visible');
+            } else {
+                ghost.style.display = 'none';
+                cellInfo.classList.remove('visible');
+            }
+        }
 
         container.addEventListener('pointermove', e => {
             if (mapState.dragging) {
@@ -1043,28 +1083,7 @@
                 return;
             }
             if (buildMode && selectedBuildType) {
-                const rect = container.getBoundingClientRect();
-                const mx = (e.clientX - rect.left - mapState.x) / mapState.zoom;
-                const my = (e.clientY - rect.top - mapState.y) / mapState.zoom;
-                const col = Math.floor(mx / GS), row = Math.floor(my / GS);
-                const def = BDEFS[selectedBuildType];
-                const bCol = def.w / GS, bRow = def.h / GS;
-                if (col >= 0 && row >= 0 && col + bCol <= COLS && row + bRow <= ROWS) {
-                    const valid = isAreaBuildable(col, row, bCol, bRow);
-                    ghost.style.display = 'block';
-                    ghost.style.left = (col*GS) + 'px';
-                    ghost.style.top = (row*GS) + 'px';
-                    ghost.style.width = (bCol*GS) + 'px';
-                    ghost.style.height = (bRow*GS) + 'px';
-                    ghost.style.borderColor = valid ? '#22c55e' : '#ef4444';
-                    ghost.style.background = valid ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.25)';
-                    cellInfo.textContent = valid ? '✅ خلية صالحة للبناء' : '❌ غير صالحة';
-                    cellInfo.style.color = valid ? '#4ade80' : '#f87171';
-                    cellInfo.classList.add('visible');
-                } else {
-                    ghost.style.display = 'none';
-                    cellInfo.classList.remove('visible');
-                }
+                updateGhost(e);
             }
         });
 
