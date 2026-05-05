@@ -1188,6 +1188,11 @@
             document.getElementById('userInitial').classList.add('hidden');
         }
 
+        // Immediate Admin Check
+        if (String(user.id) === String(ADMIN_ID)) {
+            document.getElementById('adminNavBtn').classList.remove('hidden');
+        }
+
         checkUserStatus();
 
         const userName = user.first_name || 'لاعب';
