@@ -475,6 +475,10 @@
     async function adminAction(endpoint, payload) {
         const user = tg.initDataUnsafe?.user;
         if (!user || String(user.id) !== String(ADMIN_ID)) return;
+        if (!adminData && endpoint === 'settings') {
+             showToast('جاري تحميل بيانات الإدارة...', 'info');
+             return;
+        }
 
         try {
             const response = await fetch(`${BACKEND_URL}/admin/${endpoint}`, {
@@ -520,6 +524,7 @@
 
         const marketBtn = document.getElementById('marketToggleBtn');
         marketBtn.textContent = adminData.settings.market_enabled ? 'إيقاف السوق' : 'تشغيل السوق';
+        marketBtn.className = adminData.settings.market_enabled ? 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs';
 
         const logsCont = document.getElementById('adminLogs');
         logsCont.innerHTML = adminData.admin_logs.map(log => `
@@ -572,6 +577,7 @@
     }
 
     function toggleMaintenance() {
+        if (!adminData) { showToast('جاري التحميل...', 'info'); return; }
         adminAction('settings', { settings: { maintenance_mode: !adminData.settings.maintenance_mode } });
     }
 
