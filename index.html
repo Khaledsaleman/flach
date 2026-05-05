@@ -607,51 +607,69 @@
         container.innerHTML = '';
         tasks.forEach(t => {
             const card = document.createElement('div');
-            card.className = `glass p-4 rounded-xl flex items-center gap-4 ${t.completed ? 'opacity-50' : ''}`;
+            card.className = `glass p-4 rounded-xl flex flex-col gap-3 ${t.completed ? 'opacity-50' : ''}`;
 
-            const rewardType = Object.keys(t.reward)[0];
-            const rewardAmount = t.reward[rewardType];
+            const rewards = Object.entries(t.reward).map(([asset, amount]) =>
+                `<span class="text-[10px] text-amber-400 font-bold">+${amount} ${asset.toUpperCase()}</span>`
+            ).join(' | ');
+
             const icon = t.type === 'telegram' ? '📢' : '🔗';
 
+            let actionButtons = '';
+            if (t.completed) {
+                actionButtons = `<button class="w-full bg-white/10 text-gray-400 py-2 rounded-lg text-xs font-medium cursor-default">تم الإكمال ✅</button>`;
+            } else if (t.type === 'telegram') {
+                actionButtons = `
+                    <div class="flex gap-2">
+                        <button onclick="tg.openTelegramLink('${t.link}')" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-xs font-medium">انضمام</button>
+                        <button onclick="verifyTaskCompletion(${t.id})" class="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-medium">تحقق</button>
+                    </div>
+                `;
+            } else {
+                actionButtons = `<button onclick="handleGeneralTask(${t.id}, '${t.link}')" class="w-full bg-blue-500 text-white py-2 rounded-lg text-xs font-medium">تنفيذ المهمة</button>`;
+            }
+
             card.innerHTML = `
-                <div class="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-2xl">${icon}</div>
-                <div class="flex-1">
-                    <h3 class="text-sm font-medium text-white">${t.title}</h3>
-                    <div class="flex items-center gap-1 mt-1">
-                        <span class="text-[10px] text-amber-400 font-bold">+${rewardAmount} ${rewardType.toUpperCase()}</span>
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center text-2xl shadow-inner border border-white/5">${icon}</div>
+                    <div class="flex-1">
+                        <h3 class="text-sm font-medium text-white leading-tight">${t.title}</h3>
+                        <div class="flex items-center gap-1 mt-1">${rewards}</div>
                     </div>
                 </div>
-                <button onclick="${t.completed ? '' : `handleTask(${t.id}, '${t.link}')`}"
-                    class="px-4 py-1.5 rounded-lg text-xs font-medium ${t.completed ? 'bg-gray-500/20 text-gray-400' : 'bg-blue-500 text-white'}">
-                    ${t.completed ? 'تم الإكمال' : 'تنفيذ'}
-                </button>
+                ${actionButtons}
             `;
             container.appendChild(card);
         });
     }
 
-    async function handleTask(taskId, link) {
+    async function handleGeneralTask(taskId, link) {
         tg.openLink(link);
         showToast('جاري التحقق من المهمة...', 'info');
-        setTimeout(async () => {
-            const user = tg.initDataUnsafe?.user;
-            try {
-                const response = await fetch(`${BACKEND_URL}/tasks/verify`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: user.id, task_id: taskId })
-                });
-                const data = await response.json();
-                if (data.status === 'ok') {
-                    showToast('تم إكمال المهمة! 🎉', 'success');
-                    loadTasks();
-                    checkUserStatus(); // Refresh balance
-                } else {
-                    showToast(data.error || 'فشل التحقق', 'error');
-                }
-            } catch (e) { showToast('خطأ في الاتصال', 'error'); }
-        }, 3000);
+        setTimeout(() => verifyTaskCompletion(taskId), 3000);
     }
+
+    async function verifyTaskCompletion(taskId) {
+        const user = tg.initDataUnsafe?.user;
+        if (!user) return;
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/tasks/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id, task_id: taskId, initData: tg.initData })
+            });
+            const data = await response.json();
+            if (data.status === 'ok') {
+                showToast('تم إكمال المهمة! 🎉', 'success');
+                loadTasks();
+                checkUserStatus(); // Refresh balance
+            } else {
+                showToast(data.error || 'فشل التحقق، تأكد من تنفيذ المهمة', 'error');
+            }
+        } catch (e) { showToast('خطأ في الاتصال بالسيرفر', 'error'); }
+    }
+
 
     function copyReferralLink() {
         const user = tg.initDataUnsafe?.user;
