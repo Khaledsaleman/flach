@@ -263,26 +263,32 @@ def list_tasks():
 def list_referrals():
     user_id = request.args.get('user_id')
     if not user_id:
-        return jsonify({"error": "Missing user_id"}), 400
+        return jsonify({"error": "Missing user_id", "referrals": []}), 400
 
     user_id = str(user_id)
+    print(f"Fetching referrals for user: {user_id}") # Debug log
 
     # Find all users referred by this user
     referrals = []
-    for uid, udata in game_state["users"].items():
-        # Ensure we compare strings
-        if str(udata.get("referrer")) == user_id:
-            referrals.append({
-                "id": uid,
-                "name": udata.get("name", "Unknown"),
-                "photo": udata.get("photo", ""),
-                "gold": udata.get("balance", {}).get("gold", 0)
-            })
+    try:
+        for uid, udata in game_state["users"].items():
+            # Ensure we compare strings and handle potential None values
+            ref_id = str(udata.get("referrer")) if udata.get("referrer") else None
+            if ref_id == user_id:
+                referrals.append({
+                    "id": uid,
+                    "name": udata.get("name", "Unknown"),
+                    "photo": udata.get("photo", ""),
+                    "gold": udata.get("balance", {}).get("gold", 0)
+                })
 
-    # Sort by gold descending
-    referrals.sort(key=lambda x: x["gold"], reverse=True)
+        # Sort by gold descending
+        referrals.sort(key=lambda x: x.get("gold", 0), reverse=True)
+    except Exception as e:
+        print(f"Error in list_referrals: {e}")
+        return jsonify({"error": "Internal Server Error", "referrals": []}), 500
 
-    return jsonify({"referrals": referrals})
+    return jsonify({"status": "ok", "referrals": referrals})
 
 @app.route('/tasks/verify', methods=['POST'])
 def verify_task():
