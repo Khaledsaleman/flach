@@ -7,7 +7,7 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
-BACKEND_URL = "http://127.0.0.1:5000"
+BACKEND_URL = "https://flach.onrender.com"
 
 def send_message(chat_id, text, reply_markup=None):
     url = f"{API_URL}/sendMessage"
