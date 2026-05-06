@@ -101,9 +101,17 @@ def verify_telegram_data(init_data):
 def is_admin_request(data):
     """Checks if the request is from the authorized admin."""
     init_data = data.get('initData')
-
-    # Simple check for demo/sandbox:
     user_id = data.get('user_id')
+
+    # Verify Telegram data for security if init_data is provided
+    # In production, this should be mandatory for all sensitive operations.
+    if init_data:
+        if not verify_telegram_data(init_data):
+            return False
+    elif os.getenv("ENFORCE_TELEGRAM_AUTH") == "True":
+        return False
+
+    # Check if the user is the authorized admin
     if str(user_id) == str(ADMIN_ID):
         return True
     return False

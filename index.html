@@ -73,6 +73,7 @@
             height: 100%;
             object-fit: cover;
             object-position: center;
+            background-color: #1a1a2e; /* Fallback color */
         }
 
         /* Grid فوق الصورة */
@@ -263,8 +264,8 @@
         <div id="baseTab" class="tab-content">
             <div id="mapContainer">
                 <div id="mapWorld">
-                    <!-- الصورة الأصلية كما هي تماماً بدون أي تعديل -->
-                    <img id="mapBg" src="map_bg.jpg" alt="Base Map">
+                    <!-- الصورة الأصلية مع إضافة كود لمنع التخزين المؤقت وتحسين التحميل -->
+                    <img id="mapBg" src="map_bg.jpg" alt="Base Map" onerror="handleMapError(this)" onload="console.log('Map image loaded successfully');">
                     <canvas id="gridCanvas"></canvas>
                     <div id="buildingsLayer"></div>
                     <div id="buildGhost"></div>
@@ -1391,10 +1392,24 @@
         mapWorld.style.height = MH + 'px';
 
         console.log(`Map dimensions set to: ${MW}x${MH}`);
-        console.log(`Image source: ${mapBg.src}`);
 
-        mapBg.onload = () => console.log("Map image loaded successfully");
-        mapBg.onerror = () => console.error("Failed to load map image");
+        // Add cache buster if not already present
+        if (!mapBg.src.includes('?v=')) {
+            mapBg.src = "map_bg.jpg?v=" + Date.now();
+        }
+
+        console.log(`Image source: ${mapBg.src}`);
+    }
+
+    function handleMapError(img) {
+        console.error('Failed to load map image:', img.src);
+        if (!img.triedPng) {
+            img.triedPng = true;
+            img.src = 'map_bg.png';
+        } else if (!img.triedCacheBuster) {
+            img.triedCacheBuster = true;
+            img.src = 'map_bg.jpg?v=' + Date.now();
+        }
 
         drawGrid();
         renderBuildings();
