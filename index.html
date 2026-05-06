@@ -366,8 +366,8 @@
                                 <span class="text-sm">وضع الصيانة</span>
                                 <button id="maintenanceBtn" onclick="toggleMaintenance()" class="px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs">إيقاف</button>
                             </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm">نظام السوق</span>
+                            <div class="flex items-center justify-between" id="marketAdminRow">
+                                <span class="text-sm">نظام السوق (إخفاء للأدمن)</span>
                                 <button id="marketToggleBtn" onclick="toggleMarket()" class="px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs">تشغيل</button>
                             </div>
                             <div class="flex items-center justify-between">
@@ -396,15 +396,28 @@
                                     <input type="number" id="startGold" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
                                 </div>
                                 <div>
+                                    <label class="text-[10px] text-gray-400 block mb-1">المكافأة اليومية</label>
+                                    <input type="number" id="adminDailyReward" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[10px] text-gray-400 block mb-1">نسبة الإحالة (%)</label>
+                                    <input type="number" id="refPercent" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                </div>
+                                <div>
                                     <label class="text-[10px] text-gray-400 block mb-1">سرعة التعدين</label>
                                     <input type="number" id="mineRate" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
                                 </div>
                             </div>
-                            <div>
-                                <label class="text-[10px] text-gray-400 block mb-1">نسبة الإحالة (%)</label>
-                                <input type="number" id="refPercent" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                            <div class="pt-2 border-t border-white/5">
+                                <p class="text-[10px] text-gray-400 mb-2">إعدادات المهمة اليومية:</p>
+                                <div class="grid grid-cols-2 gap-2 mb-2">
+                                    <input type="number" id="adminDailyTaskWins" placeholder="عدد الفوز" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                    <input type="text" id="adminDailyTaskReward" placeholder='{"ton": 0.1}' class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                </div>
                             </div>
-                            <button onclick="adminAction('settings', {settings: {referral_percent: parseInt(document.getElementById('refPercent').value), starting_gold: parseFloat(document.getElementById('startGold').value), base_mining_rate: parseFloat(document.getElementById('mineRate').value), swap_rates: {gold_to_ton: parseFloat(document.getElementById('rateTon').value), gold_to_usdt: parseFloat(document.getElementById('rateUsdt').value)}}})" class="w-full btn-primary py-2 rounded-lg text-xs">تحديث الإعدادات</button>
+                            <button onclick="updateGlobalSettings()" class="w-full btn-primary py-2 rounded-lg text-xs">تحديث الإعدادات</button>
                         </div>
                     </div>
 
@@ -526,7 +539,7 @@
     const ADMIN_ID = 2003253093;
     let adminData = null;
 
-    let playerData = { id:0, username: '', gold:0, energy:85, power:0, ton:0, usdt:0, rank:'برونزي III', dailyRewardClaimed:false, energyMax:100 };
+    let playerData = { id:0, username: '', gold:0, energy:85, power:0, ton:0, usdt:0, rank:'برونزي III', dailyRewardClaimed:false, energyMax:100, daily_tasks_progress: {} };
 
     async function adminAction(endpoint, payload) {
         const user = tg.initDataUnsafe?.user;
@@ -577,10 +590,15 @@
         mBtn.textContent = isMaintenance ? 'إيقاف الصيانة' : 'بدء الصيانة';
         mBtn.className = isMaintenance ? 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs';
 
-        const isMarketEnabled = adminData.settings.market_enabled === true || adminData.settings.market_enabled === '1';
+        const isMarketAdminVisible = adminData.settings.market_enabled === true || adminData.settings.market_enabled === '1';
         const marketBtn = document.getElementById('marketToggleBtn');
-        marketBtn.textContent = isMarketEnabled ? 'إيقاف السوق' : 'تشغيل السوق';
-        marketBtn.className = isMarketEnabled ? 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs';
+        marketBtn.textContent = isMarketAdminVisible ? 'إخفاء من لوحة الأدمن' : 'إظهار في لوحة الأدمن';
+        marketBtn.className = isMarketAdminVisible ? 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs';
+
+        const isAttackEnabled = adminData.settings.attack_enabled === true || adminData.settings.attack_enabled === '1';
+        const attackBtn = document.getElementById('attackToggleBtn');
+        attackBtn.textContent = isAttackEnabled ? 'إيقاف الهجوم' : 'تشغيل الهجوم';
+        attackBtn.className = isAttackEnabled ? 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs';
 
         const logsCont = document.getElementById('adminLogs');
         logsCont.innerHTML = adminData.admin_logs.map(log => `
@@ -597,6 +615,25 @@
 
         document.getElementById('startGold').value = adminData.settings.starting_gold || 100;
         document.getElementById('mineRate').value = adminData.settings.base_mining_rate || 10;
+        document.getElementById('adminDailyReward').value = adminData.settings.daily_reward_amount || 100;
+        document.getElementById('adminDailyTaskWins').value = adminData.settings.daily_task_wins_required || 20;
+        document.getElementById('adminDailyTaskReward').value = JSON.stringify(adminData.settings.daily_task_reward || {"ton": 0.1});
+    }
+
+    function updateGlobalSettings() {
+        const settings = {
+            referral_percent: parseInt(document.getElementById('refPercent').value),
+            starting_gold: parseFloat(document.getElementById('startGold').value),
+            base_mining_rate: parseFloat(document.getElementById('mineRate').value),
+            daily_reward_amount: parseFloat(document.getElementById('adminDailyReward').value),
+            daily_task_wins_required: parseInt(document.getElementById('adminDailyTaskWins').value),
+            daily_task_reward: JSON.parse(document.getElementById('adminDailyTaskReward').value),
+            swap_rates: {
+                gold_to_ton: parseFloat(document.getElementById('rateTon').value),
+                gold_to_usdt: parseFloat(document.getElementById('rateUsdt').value)
+            }
+        };
+        adminAction('settings', { settings });
     }
 
     async function adminSearchUser() {
@@ -729,6 +766,9 @@
                 if (status.user.buildings) {
                     buildings = status.user.buildings;
                 }
+                if (status.user.daily_tasks_progress) {
+                    playerData.daily_tasks_progress = status.user.daily_tasks_progress;
+                }
                 updateUI();
             }
 
@@ -787,9 +827,68 @@
         } catch (e) { console.error("Load tasks failed:", e); }
     }
 
+    async function claimDailyTaskReward() {
+        const user = tg.initDataUnsafe?.user;
+        if (!user) return;
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/daily-task/claim`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id })
+            });
+            const data = await response.json();
+            if (data.status === 'ok') {
+                showToast(data.message, 'success');
+                loadTasks();
+                checkUserStatus();
+            } else {
+                showToast(data.error, 'error');
+            }
+        } catch (e) {
+            showToast('خطأ في الاتصال', 'error');
+        }
+    }
+
     function renderTasks(tasks) {
         const container = document.getElementById('taskList');
         container.innerHTML = '';
+
+        // Add fixed Daily Task (Wins)
+        const winsRequired = adminData?.settings?.daily_task_wins_required || 20;
+        const dailyReward = adminData?.settings?.daily_task_reward || {"ton": 0.1};
+        const rewardText = Object.entries(dailyReward).map(([k, v]) => `${v} ${k.toUpperCase()}`).join(' & ');
+
+        // Use user data from status check
+        const winsProgress = (playerData.daily_tasks_progress?.wins || 0);
+        const isClaimed = playerData.daily_tasks_progress?.claimed || false;
+        const progressPercent = Math.min(100, (winsProgress / winsRequired) * 100);
+
+        const dailyTaskCard = document.createElement('div');
+        dailyTaskCard.className = 'glass p-4 rounded-xl border-l-4 border-amber-500 bg-amber-500/5 mb-3';
+        dailyTaskCard.innerHTML = `
+            <div class="flex items-center gap-4 mb-3">
+                <div class="w-12 h-12 rounded-lg bg-amber-600 flex items-center justify-center text-2xl">⚔️</div>
+                <div class="flex-1">
+                    <h3 class="text-sm font-bold text-white">تحدي الفوز اليومي</h3>
+                    <p class="text-[10px] text-amber-300">اربح ${winsRequired} مباراة للحصول على ${rewardText}</p>
+                </div>
+            </div>
+            <div class="mb-3">
+                <div class="flex justify-between text-[10px] mb-1">
+                    <span class="text-gray-400">التقدم: ${winsProgress}/${winsRequired}</span>
+                    <span class="text-amber-400">${progressPercent.toFixed(0)}%</span>
+                </div>
+                <div class="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                    <div class="h-full bg-amber-500" style="width: ${progressPercent}%"></div>
+                </div>
+            </div>
+            ${isClaimed
+                ? '<button class="w-full bg-white/10 text-gray-400 py-2 rounded-lg text-xs font-bold cursor-default">تم الاستلام ✅</button>'
+                : `<button onclick="claimDailyTaskReward()" class="w-full ${winsProgress >= winsRequired ? 'bg-green-600' : 'bg-white/10 text-gray-500'} py-2 rounded-lg text-xs font-bold" ${winsProgress < winsRequired ? 'disabled' : ''}>استلام المكافأة</button>`
+            }
+        `;
+        container.appendChild(dailyTaskCard);
 
         // Add fixed Referral Task
         const refCard = document.createElement('div');
@@ -1402,9 +1501,6 @@
         b.level++; renderBuildings(); updateUI(); closeModal('upgradeModal');
         saveProgress();
         showToast('تم الترقية! 🎉', 'success');
-
-        const bName = BDEFS[b.type].name;
-        sendTelegramNotification(`🏗️ <b>تمت ترقية ${bName} إلى المستوى ${b.level}!</b>`);
     }
 
     // Core
@@ -1444,22 +1540,15 @@
         }
 
         checkUserStatus();
-
-        const userName = user.first_name || 'لاعب';
-        // Profile text is now updated inside checkUserStatus() once data is loaded
-        sendTelegramNotification(`🎮 <b>سجل اللاعب ${userName} دخوله الآن!</b>`);
     });
 
     function switchTab(name) {
-        // Market visibility check
-        if (name === 'market' && adminData && adminData.settings.market_enabled === false) {
-            showToast('السوق مغلق حالياً', 'warning');
-            return;
-        }
+        // Market is always available for users as per new requirements
 
         // Attack status check
         if (name === 'attack' && adminData && adminData.settings.attack_enabled === false) {
-            document.getElementById('attackTab').innerHTML = `
+            const attackTab = document.getElementById('attackTab');
+            attackTab.innerHTML = `
                 <div class="h-full flex flex-col items-center justify-center p-10 text-center">
                     <div class="text-6xl mb-4">⚔️</div>
                     <h2 class="text-2xl font-bold text-amber-500 mb-2">Soon...</h2>
@@ -1495,13 +1584,17 @@
         if (name === 'tasks') loadTasks();
         if (name === 'leaderboard') loadLeaderboard();
 
-        // Hide/Show Market Nav Item
+        // Market tab is always visible in bottom nav for all users
         const marketNav = document.querySelector('[data-tab="market"]');
-        if (marketNav && adminData) {
+        if (marketNav) marketNav.classList.remove('hidden');
+
+        // Admin panel logic: hide market row if admin disabled it there
+        const marketAdminRow = document.getElementById('marketAdminRow');
+        if (marketAdminRow && adminData) {
             if (adminData.settings.market_enabled === false) {
-                marketNav.classList.add('hidden');
+                marketAdminRow.classList.add('hidden');
             } else {
-                marketNav.classList.remove('hidden');
+                marketAdminRow.classList.remove('hidden');
             }
         }
     }
@@ -1517,28 +1610,54 @@
     }
     function startEnergyRegen() { setInterval(()=>{ if(playerData.energy<playerData.energyMax){playerData.energy++;updateUI();saveProgress();} },60000); }
     function checkDailyReset() { const n=new Date(); document.getElementById('questReset').textContent=`إعادة التعيين: ${24-n.getHours()}س`; }
-    function claimDailyReward() {
-        if(playerData.dailyRewardClaimed){showToast('تم الاستلام!','warning');return;}
-        playerData.gold+=100;
-        playerData.dailyRewardClaimed=true;
-        updateUI();
-        saveProgress();
-        showToast('+100 ذهب 🎉','success');
-        sendTelegramNotification(`💰 <b>تم جمع المكافأة اليومية (+100 ذهب)!</b>`);
+    async function claimDailyReward() {
+        const user = tg.initDataUnsafe?.user;
+        if (!user) return;
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/daily-reward/claim`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id })
+            });
+            const data = await response.json();
+            if (data.status === 'ok') {
+                showToast(data.message, 'success');
+                checkUserStatus(); // Refresh balance
+            } else {
+                showToast(data.error, 'error');
+            }
+        } catch (e) {
+            showToast('خطأ في الاتصال', 'error');
+        }
     }
     function findOpponent() { if(playerData.energy<10){showToast('طاقة غير كافية','error');return;} document.getElementById('opponentCard').classList.remove('hidden'); showToast('تم العثور على خصم!','success'); }
-    function attackOpponent() {
-        playerData.energy-=10;
-        const w=Math.random()>0.4;
-        const g=w?Math.floor(250):Math.floor(-100);
-        playerData.gold+=g;
-        updateUI();
-        saveProgress();
-        document.getElementById('opponentCard').classList.add('hidden');
-        showToast(w?'نصر! ⚔️':'هزيمة! 😔',w?'success':'error');
+    async function attackOpponent() {
+        const user = tg.initDataUnsafe?.user;
+        if (!user) return;
 
-        const msg = w ? `⚔️ <b>نصر في المعركة!</b> تم ربح ${g} ذهب.` : `💀 <b>هزيمة في المعركة!</b> خسرنا ${Math.abs(g)} ذهب.`;
-        sendTelegramNotification(msg);
+        try {
+            const response = await fetch(`${BACKEND_URL}/attack/perform`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id })
+            });
+            const data = await response.json();
+
+            if (data.status === 'ok') {
+                playerData.gold = data.new_gold;
+                playerData.energy = data.new_energy;
+                playerData.daily_tasks_progress = data.progress;
+
+                updateUI();
+                document.getElementById('opponentCard').classList.add('hidden');
+                showToast(data.win ? 'نصر! ⚔️' : 'هزيمة! 😔', data.win ? 'success' : 'error');
+            } else {
+                showToast(data.error, 'error');
+            }
+        } catch (e) {
+            showToast('خطأ في الاتصال', 'error');
+        }
     }
     function startClanWar() { showToast('بدأت الحرب! ⚔️','info'); }
     function showWalletModal() { document.getElementById('walletModal').classList.remove('hidden'); }
