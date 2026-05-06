@@ -59,7 +59,7 @@ def load_settings():
         rows = conn.execute("SELECT key, value FROM global_settings").fetchall()
         for row in rows:
             key, value = row['key'], row['value']
-            if key in ['maintenance_mode', 'market_enabled', 'attack_enabled', 'swap_enabled']:
+            if key in ['maintenance_mode', 'attack_enabled', 'swap_enabled']:
                 game_state["settings"][key] = (value == '1' or value == 'True' or value is True)
             elif key in ['referral_percent', 'daily_task_wins_required']:
                 game_state["settings"][key] = int(float(value))

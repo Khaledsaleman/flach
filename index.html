@@ -246,10 +246,14 @@
                     <button onclick="claimDailyReward()" class="mt-2 w-full btn-primary py-2 rounded-lg text-sm font-medium text-black">مكافأة يومية</button>
                 </div>
                 <div class="grid grid-cols-2 gap-2 mb-3">
-                    <button onclick="switchTab('base')" class="glass rounded-xl p-3 text-right hover:bg-white/10 transition glow-blue"><span class="text-xl mb-1 block">🏰</span><div class="font-orbitron text-sm text-blue-400">قاعدتي</div></button>
-                    <button onclick="switchTab('attack')" class="glass rounded-xl p-3 text-right hover:bg-white/10 transition glow-red"><span class="text-xl mb-1 block">⚔️</span><div class="font-orbitron text-sm text-red-400">هجوم</div></button>
-                    <button onclick="switchTab('clan')" class="glass rounded-xl p-3 text-right hover:bg-white/10 transition glow-purple"><span class="text-xl mb-1 block">🛡️</span><div class="font-orbitron text-sm text-purple-400">العشيرة</div></button>
-                    <button onclick="switchTab('market')" class="glass rounded-xl p-3 text-right hover:bg-white/10 transition glow-green"><span class="text-xl mb-1 block">🏪</span><div class="font-orbitron text-sm text-green-400">السوق</div></button>
+                    <button onclick="switchTab('base')" class="glass rounded-xl p-3 text-right hover:bg-white/10 transition glow-blue col-span-1"><span class="text-xl mb-1 block">🏰</span><div class="font-orbitron text-sm text-blue-400">قاعدتي</div></button>
+                    <button onclick="switchTab('attack')" class="glass rounded-xl p-3 text-right hover:bg-white/10 transition glow-red col-span-1"><span class="text-xl mb-1 block">⚔️</span><div class="font-orbitron text-sm text-red-400">هجوم</div></button>
+                </div>
+
+                <!-- Daily Win Challenge Section -->
+                <div id="homeDailyChallenge" class="glass rounded-xl p-4 mb-3 border-amber-500/20 bg-amber-500/5">
+                    <!-- Loaded dynamically -->
+                    <div class="text-center py-2 opacity-50 text-xs text-amber-200">جاري تحميل التحدي اليومي...</div>
                 </div>
             </div>
         </div>
@@ -293,16 +297,6 @@
             </div>
         </div>
 
-        <!-- Market Tab -->
-        <div id="marketTab" class="tab-content">
-            <div class="scroll-content p-3">
-                <h1 class="font-orbitron text-lg text-green-400 mb-3">🏪 السوق</h1>
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="glass rounded-xl overflow-hidden"><div class="h-28 bg-gradient-to-br from-amber-600 to-orange-800 flex items-center justify-center"><span class="text-4xl">🦸‍️</span></div><div class="p-3"><h3 class="font-orbitron text-sm text-white mb-1">الظلال القاتل</h3><div class="flex items-center justify-between"><span class="text-xs text-blue-400">2.5 TON</span><button onclick="showToast('تم الشراء!','success')" class="px-3 py-1 rounded-lg bg-green-500/20 text-green-300 text-xs">شراء</button></div></div></div>
-                    <div class="glass rounded-xl overflow-hidden"><div class="h-28 bg-gradient-to-br from-purple-600 to-indigo-800 flex items-center justify-center"><span class="text-4xl">🛡️</span></div><div class="p-3"><h3 class="font-orbitron text-sm text-white mb-1">درع التنين</h3><div class="flex items-center justify-between"><span class="text-xs text-green-400">50 USDT</span><button onclick="showToast('تم الشراء!','success')" class="px-3 py-1 rounded-lg bg-green-500/20 text-green-300 text-xs">شراء</button></div></div></div>
-                </div>
-            </div>
-        </div>
 
         <!-- Tasks Tab -->
         <div id="tasksTab" class="tab-content">
@@ -365,10 +359,6 @@
                             <div class="flex items-center justify-between">
                                 <span class="text-sm">وضع الصيانة</span>
                                 <button id="maintenanceBtn" onclick="toggleMaintenance()" class="px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs">إيقاف</button>
-                            </div>
-                            <div class="flex items-center justify-between" id="marketAdminRow">
-                                <span class="text-sm">نظام السوق (إخفاء للأدمن)</span>
-                                <button id="marketToggleBtn" onclick="toggleMarket()" class="px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs">تشغيل</button>
                             </div>
                             <div class="flex items-center justify-between">
                                 <span class="text-sm">نظام الهجوم</span>
@@ -469,7 +459,6 @@
             <button onclick="switchTab('tasks')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="tasks"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg><span class="text-[9px] text-gray-400">المهام</span></button>
             <button onclick="switchTab('attack')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="attack"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg><span class="text-[9px] text-gray-400">هجوم</span></button>
             <button onclick="switchTab('leaderboard')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="leaderboard"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg><span class="text-[9px] text-gray-400">المتصدرين</span></button>
-            <button onclick="switchTab('market')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="market"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg><span class="text-[9px] text-gray-400">السوق</span></button>
             <button id="adminNavBtn" onclick="switchTab('admin')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition hidden" data-tab="admin"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg><span class="text-[9px] text-gray-400">الإدارة</span></button>
         </div>
     </nav>
@@ -590,11 +579,6 @@
         mBtn.textContent = isMaintenance ? 'إيقاف الصيانة' : 'بدء الصيانة';
         mBtn.className = isMaintenance ? 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs';
 
-        const isMarketAdminVisible = adminData.settings.market_enabled === true || adminData.settings.market_enabled === '1';
-        const marketBtn = document.getElementById('marketToggleBtn');
-        marketBtn.textContent = isMarketAdminVisible ? 'إخفاء من لوحة الأدمن' : 'إظهار في لوحة الأدمن';
-        marketBtn.className = isMarketAdminVisible ? 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs';
-
         const isAttackEnabled = adminData.settings.attack_enabled === true || adminData.settings.attack_enabled === '1';
         const attackBtn = document.getElementById('attackToggleBtn');
         attackBtn.textContent = isAttackEnabled ? 'إيقاف الهجوم' : 'تشغيل الهجوم';
@@ -706,11 +690,6 @@
     function toggleMaintenance() {
         const isMaintenance = adminData.settings.maintenance_mode === true || adminData.settings.maintenance_mode === '1';
         adminAction('settings', { settings: { maintenance_mode: !isMaintenance } });
-    }
-
-    function toggleMarket() {
-        const isMarketEnabled = adminData.settings.market_enabled === true || adminData.settings.market_enabled === '1';
-        adminAction('settings', { settings: { market_enabled: !isMarketEnabled } });
     }
 
     function toggleAttack() {
@@ -854,41 +833,7 @@
         const container = document.getElementById('taskList');
         container.innerHTML = '';
 
-        // Add fixed Daily Task (Wins)
-        const winsRequired = adminData?.settings?.daily_task_wins_required || 20;
-        const dailyReward = adminData?.settings?.daily_task_reward || {"ton": 0.1};
-        const rewardText = Object.entries(dailyReward).map(([k, v]) => `${v} ${k.toUpperCase()}`).join(' & ');
-
-        // Use user data from status check
-        const winsProgress = (playerData.daily_tasks_progress?.wins || 0);
-        const isClaimed = playerData.daily_tasks_progress?.claimed || false;
-        const progressPercent = Math.min(100, (winsProgress / winsRequired) * 100);
-
-        const dailyTaskCard = document.createElement('div');
-        dailyTaskCard.className = 'glass p-4 rounded-xl border-l-4 border-amber-500 bg-amber-500/5 mb-3';
-        dailyTaskCard.innerHTML = `
-            <div class="flex items-center gap-4 mb-3">
-                <div class="w-12 h-12 rounded-lg bg-amber-600 flex items-center justify-center text-2xl">⚔️</div>
-                <div class="flex-1">
-                    <h3 class="text-sm font-bold text-white">تحدي الفوز اليومي</h3>
-                    <p class="text-[10px] text-amber-300">اربح ${winsRequired} مباراة للحصول على ${rewardText}</p>
-                </div>
-            </div>
-            <div class="mb-3">
-                <div class="flex justify-between text-[10px] mb-1">
-                    <span class="text-gray-400">التقدم: ${winsProgress}/${winsRequired}</span>
-                    <span class="text-amber-400">${progressPercent.toFixed(0)}%</span>
-                </div>
-                <div class="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                    <div class="h-full bg-amber-500" style="width: ${progressPercent}%"></div>
-                </div>
-            </div>
-            ${isClaimed
-                ? '<button class="w-full bg-white/10 text-gray-400 py-2 rounded-lg text-xs font-bold cursor-default">تم الاستلام ✅</button>'
-                : `<button onclick="claimDailyTaskReward()" class="w-full ${winsProgress >= winsRequired ? 'bg-green-600' : 'bg-white/10 text-gray-500'} py-2 rounded-lg text-xs font-bold" ${winsProgress < winsRequired ? 'disabled' : ''}>استلام المكافأة</button>`
-            }
-        `;
-        container.appendChild(dailyTaskCard);
+        // Daily Task moved to Home Tab as per requirements
 
         // Add fixed Referral Task
         const refCard = document.createElement('div');
@@ -1607,6 +1552,44 @@
         document.getElementById('playerRank').textContent = `الرتبة: ${playerData.rank}`;
         document.getElementById('energyText').textContent = `${playerData.energy}/${playerData.energyMax}`;
         document.getElementById('energyBar').style.width = `${(playerData.energy/playerData.energyMax)*100}%`;
+
+        updateDailyChallengeUI();
+    }
+
+    function updateDailyChallengeUI() {
+        const container = document.getElementById('homeDailyChallenge');
+        if (!adminData) return;
+
+        const winsRequired = adminData.settings.daily_task_wins_required || 20;
+        const dailyReward = adminData.settings.daily_task_reward || {"ton": 0.1};
+        const rewardText = Object.entries(dailyReward).map(([k, v]) => `${v} ${k.toUpperCase()}`).join(' & ');
+
+        const winsProgress = (playerData.daily_tasks_progress?.wins || 0);
+        const isClaimed = playerData.daily_tasks_progress?.claimed || false;
+        const progressPercent = Math.min(100, (winsProgress / winsRequired) * 100);
+
+        container.innerHTML = `
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-lg bg-amber-600 flex items-center justify-center text-xl shadow-lg">🏆</div>
+                <div class="flex-1">
+                    <h3 class="text-xs font-bold text-white mb-0.5">تحدي الفوز اليومي</h3>
+                    <p class="text-[9px] text-amber-300">فز بـ ${winsRequired} مباراة اليوم للحصول على ${rewardText}</p>
+                </div>
+            </div>
+            <div class="mb-3">
+                <div class="flex justify-between text-[9px] mb-1">
+                    <span class="text-gray-400">التقدم: ${winsProgress}/${winsRequired}</span>
+                    <span class="text-amber-400 font-bold">${progressPercent.toFixed(0)}%</span>
+                </div>
+                <div class="h-1.5 bg-gray-800 rounded-full overflow-hidden border border-white/5">
+                    <div class="h-full bg-gradient-to-r from-amber-600 to-amber-400" style="width: ${progressPercent}%"></div>
+                </div>
+            </div>
+            ${isClaimed
+                ? '<div class="w-full bg-white/10 text-gray-400 py-2 rounded-lg text-[10px] font-bold text-center">تم استلام المكافأة بنجاح ✅</div>'
+                : `<button onclick="claimDailyTaskReward()" class="w-full ${winsProgress >= winsRequired ? 'btn-primary text-black' : 'bg-white/5 text-gray-500'} py-2 rounded-lg text-[10px] font-bold transition-all" ${winsProgress < winsRequired ? 'disabled' : ''}>${winsProgress >= winsRequired ? '🎁 استلام المكافأة الآن' : 'بانتظار إكمال التحدي'}</button>`
+            }
+        `;
     }
     function startEnergyRegen() { setInterval(()=>{ if(playerData.energy<playerData.energyMax){playerData.energy++;updateUI();saveProgress();} },60000); }
     function checkDailyReset() { const n=new Date(); document.getElementById('questReset').textContent=`إعادة التعيين: ${24-n.getHours()}س`; }

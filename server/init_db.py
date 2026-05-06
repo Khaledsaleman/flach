@@ -106,7 +106,6 @@ def init_db():
         ('base_mining_rate', '10.0'),
         ('maintenance_mode', '0'),
         ('referral_percent', '10'),
-        ('market_enabled', '1'),
         ('attack_enabled', '1'),
         ('swap_rates', '{"gold_to_ton": 0.0001, "gold_to_usdt": 0.0005}')
     ]
