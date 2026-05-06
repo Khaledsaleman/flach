@@ -311,12 +311,17 @@
                 <div class="mt-6 glass p-4 rounded-xl">
                     <h2 class="font-orbitron text-sm text-white mb-2">👥 نظام الإحالات</h2>
                     <p class="text-[10px] text-gray-400 mb-3">احصل على 10% من أرباح أصدقائك للأبد!</p>
-                    <div class="flex gap-2">
-                        <button onclick="copyReferralLink()" class="flex-1 btn-primary py-2.5 rounded-lg text-xs font-medium flex items-center justify-center gap-2">
-                            <span>🔗 نسخ الرابط</span>
-                        </button>
-                        <button onclick="openReferralsModal()" class="flex-1 btn-secondary py-2.5 rounded-lg text-xs font-medium flex items-center justify-center gap-2">
-                            <span>👥 عرض الإحالات</span>
+                    <div class="space-y-2">
+                        <div class="flex gap-2">
+                            <button onclick="copyReferralLink()" class="flex-1 btn-primary py-2.5 rounded-lg text-xs font-medium flex items-center justify-center gap-2">
+                                <span>🔗 نسخ الرابط</span>
+                            </button>
+                            <button onclick="openReferralsModal()" class="flex-1 btn-secondary py-2.5 rounded-lg text-xs font-medium flex items-center justify-center gap-2">
+                                <span>👥 عرض الإحالات</span>
+                            </button>
+                        </div>
+                        <button onclick="claimReferralRewards()" class="w-full bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-lg text-xs font-bold transition-all shadow-lg glow-green flex items-center justify-center gap-2">
+                            <span>🎁 جمع مكافآت الإحالة</span>
                         </button>
                     </div>
                 </div>
@@ -364,6 +369,10 @@
                                 <span class="text-sm">نظام الهجوم</span>
                                 <button id="attackToggleBtn" onclick="toggleAttack()" class="px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs">تشغيل</button>
                             </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm">مكافآت الإحالة</span>
+                                <button id="refRewardsToggleBtn" onclick="toggleReferralRewards()" class="px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs">تشغيل</button>
+                            </div>
                         </div>
                     </div>
                     <!-- Swap Settings -->
@@ -400,11 +409,17 @@
                                     <input type="number" id="mineRate" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
                                 </div>
                             </div>
-                            <div class="pt-2 border-t border-white/5">
-                                <p class="text-[10px] text-gray-400 mb-2">إعدادات المهمة اليومية:</p>
-                                <div class="grid grid-cols-2 gap-2 mb-2">
-                                    <input type="number" id="adminDailyTaskWins" placeholder="عدد الفوز" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
-                                    <input type="text" id="adminDailyTaskReward" placeholder='{"ton": 0.1}' class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                            <div class="pt-2 border-t border-white/5 space-y-2">
+                                <div>
+                                    <p class="text-[10px] text-gray-400 mb-1">إعدادات المهمة اليومية:</p>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <input type="number" id="adminDailyTaskWins" placeholder="عدد الفوز" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                        <input type="text" id="adminDailyTaskReward" placeholder='{"ton": 0.1}' class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] text-gray-400 mb-1">مكافأة كل إحالة:</p>
+                                    <input type="text" id="adminRefRewardConfig" placeholder='{"gold": 1000}' class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
                                 </div>
                             </div>
                             <button onclick="updateGlobalSettings()" class="w-full btn-primary py-2 rounded-lg text-xs">تحديث الإعدادات</button>
@@ -579,6 +594,13 @@
         mBtn.textContent = isMaintenance ? 'إيقاف الصيانة' : 'بدء الصيانة';
         mBtn.className = isMaintenance ? 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs';
 
+        const isRefRewardsEnabled = adminData.settings.referral_rewards_enabled === true || adminData.settings.referral_rewards_enabled === '1';
+        const refRewBtn = document.getElementById('refRewardsToggleBtn');
+        if (refRewBtn) {
+            refRewBtn.textContent = isRefRewardsEnabled ? 'إيقاف مكافآت الإحالة' : 'تشغيل مكافآت الإحالة';
+            refRewBtn.className = isRefRewardsEnabled ? 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs';
+        }
+
         const isAttackEnabled = adminData.settings.attack_enabled === true || adminData.settings.attack_enabled === '1';
         const attackBtn = document.getElementById('attackToggleBtn');
         attackBtn.textContent = isAttackEnabled ? 'إيقاف الهجوم' : 'تشغيل الهجوم';
@@ -602,6 +624,7 @@
         document.getElementById('adminDailyReward').value = adminData.settings.daily_reward_amount || 100;
         document.getElementById('adminDailyTaskWins').value = adminData.settings.daily_task_wins_required || 20;
         document.getElementById('adminDailyTaskReward').value = JSON.stringify(adminData.settings.daily_task_reward || {"ton": 0.1});
+        document.getElementById('adminRefRewardConfig').value = JSON.stringify(adminData.settings.referral_reward_per_user || {"gold": 1000});
     }
 
     function updateGlobalSettings() {
@@ -612,12 +635,18 @@
             daily_reward_amount: parseFloat(document.getElementById('adminDailyReward').value),
             daily_task_wins_required: parseInt(document.getElementById('adminDailyTaskWins').value),
             daily_task_reward: JSON.parse(document.getElementById('adminDailyTaskReward').value),
+            referral_reward_per_user: JSON.parse(document.getElementById('adminRefRewardConfig').value),
             swap_rates: {
                 gold_to_ton: parseFloat(document.getElementById('rateTon').value),
                 gold_to_usdt: parseFloat(document.getElementById('rateUsdt').value)
             }
         };
         adminAction('settings', { settings });
+    }
+
+    function toggleReferralRewards() {
+        const isEnabled = adminData.settings.referral_rewards_enabled === true || adminData.settings.referral_rewards_enabled === '1';
+        adminAction('settings', { settings: { referral_rewards_enabled: !isEnabled } });
     }
 
     async function adminSearchUser() {
@@ -1593,6 +1622,28 @@
     }
     function startEnergyRegen() { setInterval(()=>{ if(playerData.energy<playerData.energyMax){playerData.energy++;updateUI();saveProgress();} },60000); }
     function checkDailyReset() { const n=new Date(); document.getElementById('questReset').textContent=`إعادة التعيين: ${24-n.getHours()}س`; }
+    async function claimReferralRewards() {
+        const user = tg.initDataUnsafe?.user;
+        if (!user) return;
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/referrals/claim-rewards`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id })
+            });
+            const data = await response.json();
+            if (data.status === 'ok') {
+                showToast(data.message, 'success');
+                checkUserStatus(); // Refresh balance
+            } else {
+                showToast(data.error, 'error');
+            }
+        } catch (e) {
+            showToast('خطأ في الاتصال', 'error');
+        }
+    }
+
     async function claimDailyReward() {
         const user = tg.initDataUnsafe?.user;
         if (!user) return;
