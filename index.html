@@ -308,21 +308,41 @@
                     <div class="text-center py-10 opacity-50">جاري تحميل المهام...</div>
                 </div>
 
-                <div class="mt-6 glass p-4 rounded-xl">
-                    <h2 class="font-orbitron text-sm text-white mb-2">👥 نظام الإحالات</h2>
-                    <p class="text-[10px] text-gray-400 mb-3">احصل على 10% من أرباح أصدقائك للأبد!</p>
-                    <div class="space-y-2">
-                        <div class="flex gap-2">
-                            <button onclick="copyReferralLink()" class="flex-1 btn-primary py-2.5 rounded-lg text-xs font-medium flex items-center justify-center gap-2">
-                                <span>🔗 نسخ الرابط</span>
-                            </button>
-                            <button onclick="openReferralsModal()" class="flex-1 btn-secondary py-2.5 rounded-lg text-xs font-medium flex items-center justify-center gap-2">
-                                <span>👥 عرض الإحالات</span>
+                <!-- Organized Referral Section -->
+                <div class="mt-8 border-t border-white/10 pt-6">
+                    <div class="glass p-5 rounded-2xl border-l-4 border-amber-500 bg-gradient-to-br from-amber-500/5 to-transparent">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-xl shadow-inner">🤝</div>
+                            <div>
+                                <h2 class="font-bold text-white text-base">برنامج الإحالة المميز</h2>
+                                <p class="text-[10px] text-gray-400">شارك المتعة واربح مكافآت دائمة!</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 mb-4">
+                            <div class="bg-white/5 rounded-xl p-3 border border-white/5 text-center">
+                                <div class="text-[10px] text-gray-500 mb-1">نسبة الربح</div>
+                                <div class="text-sm font-bold text-amber-400" id="refPercentDisplay">10%</div>
+                            </div>
+                            <div class="bg-white/5 rounded-xl p-3 border border-white/5 text-center">
+                                <div class="text-[10px] text-gray-500 mb-1">المكافأة لكل صديق</div>
+                                <div class="text-sm font-bold text-green-400" id="refRewardDisplay">1,000</div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div class="flex gap-2">
+                                <button onclick="copyReferralLink()" class="flex-1 btn-primary py-3 rounded-xl text-xs font-bold text-black flex items-center justify-center gap-2 shadow-lg">
+                                    <span>🔗 نسخ الرابط</span>
+                                </button>
+                                <button onclick="openReferralsModal()" class="flex-1 bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all">
+                                    <span>👥 قائمة الإحالات</span>
+                                </button>
+                            </div>
+                            <button onclick="claimReferralRewards()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl text-xs font-black transition-all shadow-lg glow-green flex items-center justify-center gap-2 border border-emerald-500/30">
+                                <span>🎁 جمع كافة المكافآت المستحقة</span>
                             </button>
                         </div>
-                        <button onclick="claimReferralRewards()" class="w-full bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-lg text-xs font-bold transition-all shadow-lg glow-green flex items-center justify-center gap-2">
-                            <span>🎁 جمع مكافآت الإحالة</span>
-                        </button>
                     </div>
                 </div>
             </div>
@@ -354,6 +374,51 @@
                                 </div>
                                 <input type="number" id="adminUsdtAdd" placeholder="USDT" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
                                 <button onclick="adminAddResources()" class="w-full btn-secondary py-2 rounded-lg text-xs">إرسال الموارد</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Daily Tasks Independent Panel -->
+                    <div class="glass p-4 rounded-xl border border-amber-500/20">
+                        <h2 class="font-medium text-white mb-3 flex items-center gap-2"><span class="text-amber-400">⏳</span> إعدادات المهام اليومية (المميزة)</h2>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm">عرض المهمة للمستخدمين</span>
+                                <button id="dailyTaskVisibleBtn" onclick="toggleDailyTaskVisibility()" class="px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs">تشغيل</button>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[10px] text-gray-400 block mb-1">عدد مرات الفوز المطلوبة</label>
+                                    <input type="number" id="adminDailyTaskWins" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-gray-400 block mb-1">نوع العملة</label>
+                                    <select id="adminDailyTaskRewardType" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300">
+                                        <option value="gold">Gold</option>
+                                        <option value="ton">TON</option>
+                                        <option value="usdt">USDT</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 block mb-1">قيمة المكافأة</label>
+                                <input type="number" id="adminDailyTaskRewardValue" step="0.001" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+                            </div>
+
+                            <div class="p-3 bg-white/5 rounded-lg border border-white/10">
+                                <label class="text-[10px] text-gray-400 block mb-2">وقت انتهاء المهمة (Countdown)</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <select id="adminDailyTaskExpiryType" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300">
+                                        <option value="fixed">وقت يومي ثابت (00:00)</option>
+                                        <option value="timer">مدة زمنية (ساعات)</option>
+                                    </select>
+                                    <input type="number" id="adminDailyTaskExpiryValue" placeholder="مثلاً: 24 ساعة" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+                                </div>
+                            </div>
+
+                            <div class="flex gap-2 pt-2">
+                                <button onclick="updateDailyTaskSettings()" class="flex-1 btn-primary py-2.5 rounded-lg text-xs font-bold text-black shadow-lg">تحديث المهمة</button>
+                                <button onclick="deleteDailyTask()" class="flex-1 btn-danger py-2.5 rounded-lg text-xs font-bold text-white shadow-lg">حذف المهمة</button>
                             </div>
                         </div>
                     </div>
@@ -410,13 +475,6 @@
                                 </div>
                             </div>
                             <div class="pt-2 border-t border-white/5 space-y-2">
-                                <div>
-                                    <p class="text-[10px] text-gray-400 mb-1">إعدادات المهمة اليومية:</p>
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <input type="number" id="adminDailyTaskWins" placeholder="عدد الفوز" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
-                                        <input type="text" id="adminDailyTaskReward" placeholder='{"ton": 0.1}' class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
-                                    </div>
-                                </div>
                                 <div>
                                     <p class="text-[10px] text-gray-400 mb-1">مكافأة كل إحالة:</p>
                                     <input type="text" id="adminRefRewardConfig" placeholder='{"gold": 1000}' class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
@@ -619,22 +677,75 @@
         document.getElementById('rateUsdt').value = adminData.settings.swap_rates.gold_to_usdt;
         document.getElementById('refPercent').value = adminData.settings.referral_percent;
 
+        // Update referral info in Tasks tab if visible
+        const rpd = document.getElementById('refPercentDisplay');
+        if (rpd) rpd.textContent = (adminData.settings.referral_percent || 10) + '%';
+        const rrd = document.getElementById('refRewardDisplay');
+        if (rrd) {
+            const config = adminData.settings.referral_reward_per_user || {"gold": 1000};
+            const text = Object.entries(config).map(([k, v]) => `${v} ${k.toUpperCase()}`).join(' & ');
+            rrd.textContent = text;
+        }
+
         document.getElementById('startGold').value = adminData.settings.starting_gold || 100;
         document.getElementById('mineRate').value = adminData.settings.base_mining_rate || 10;
         document.getElementById('adminDailyReward').value = adminData.settings.daily_reward_amount || 100;
+
+        // Update Daily Task Panel
+        const dtvBtn = document.getElementById('dailyTaskVisibleBtn');
+        const isDtv = adminData.settings.daily_task_enabled === true || adminData.settings.daily_task_enabled === '1';
+        if (dtvBtn) {
+            dtvBtn.textContent = isDtv ? 'إخفاء المهمة' : 'عرض المهمة';
+            dtvBtn.className = isDtv ? 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs';
+        }
         document.getElementById('adminDailyTaskWins').value = adminData.settings.daily_task_wins_required || 20;
-        document.getElementById('adminDailyTaskReward').value = JSON.stringify(adminData.settings.daily_task_reward || {"ton": 0.1});
+        const taskRew = adminData.settings.daily_task_reward || {"ton": 0.1};
+        const asset = Object.keys(taskRew)[0] || 'gold';
+        document.getElementById('adminDailyTaskRewardType').value = asset;
+        document.getElementById('adminDailyTaskRewardValue').value = taskRew[asset];
+        document.getElementById('adminDailyTaskExpiryType').value = adminData.settings.daily_task_expiry_type || 'fixed';
+        document.getElementById('adminDailyTaskExpiryValue').value = adminData.settings.daily_task_expiry_value || 24;
+
         document.getElementById('adminRefRewardConfig').value = JSON.stringify(adminData.settings.referral_reward_per_user || {"gold": 1000});
     }
 
+    function updateDailyTaskSettings() {
+        const reward = {};
+        reward[document.getElementById('adminDailyTaskRewardType').value] = parseFloat(document.getElementById('adminDailyTaskRewardValue').value);
+
+        const settings = {
+            daily_task_enabled: true,
+            daily_task_wins_required: parseInt(document.getElementById('adminDailyTaskWins').value),
+            daily_task_reward: reward,
+            daily_task_expiry_type: document.getElementById('adminDailyTaskExpiryType').value,
+            daily_task_expiry_value: parseFloat(document.getElementById('adminDailyTaskExpiryValue').value),
+            daily_task_start_time: new Date().toISOString() // Start tracking from update
+        };
+        adminAction('settings', { settings });
+    }
+
+    function deleteDailyTask() {
+        if (confirm('هل أنت متأكد من إخفاء المهمة اليومية من جميع المستخدمين؟')) {
+            adminAction('settings', { settings: { daily_task_enabled: false } });
+        }
+    }
+
+    function toggleDailyTaskVisibility() {
+        const isVisible = adminData.settings.daily_task_enabled === true || adminData.settings.daily_task_enabled === '1';
+        adminAction('settings', { settings: { daily_task_enabled: !isVisible } });
+    }
+
     function updateGlobalSettings() {
+        const reward = {};
+        reward[document.getElementById('adminDailyTaskRewardType').value] = parseFloat(document.getElementById('adminDailyTaskRewardValue').value);
+
         const settings = {
             referral_percent: parseInt(document.getElementById('refPercent').value),
             starting_gold: parseFloat(document.getElementById('startGold').value),
             base_mining_rate: parseFloat(document.getElementById('mineRate').value),
             daily_reward_amount: parseFloat(document.getElementById('adminDailyReward').value),
             daily_task_wins_required: parseInt(document.getElementById('adminDailyTaskWins').value),
-            daily_task_reward: JSON.parse(document.getElementById('adminDailyTaskReward').value),
+            daily_task_reward: reward,
             referral_reward_per_user: JSON.parse(document.getElementById('adminRefRewardConfig').value),
             swap_rates: {
                 gold_to_ton: parseFloat(document.getElementById('rateTon').value),
@@ -864,21 +975,6 @@
 
         // Daily Task moved to Home Tab as per requirements
 
-        // Add fixed Referral Task
-        const refCard = document.createElement('div');
-        refCard.className = 'glass p-4 rounded-xl border-l-4 border-blue-500 bg-blue-500/5 mb-3';
-        refCard.innerHTML = `
-            <div class="flex items-center gap-4 mb-3">
-                <div class="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center text-2xl">👥</div>
-                <div class="flex-1">
-                    <h3 class="text-sm font-bold text-white">مهمة الإحالة الدائمة</h3>
-                    <p class="text-[10px] text-blue-300">اربح ${adminData?.settings?.referral_percent || 10}% من أرباح أصدقائك!</p>
-                </div>
-            </div>
-            <button onclick="copyReferralLink()" class="w-full bg-blue-600 text-white py-2 rounded-lg text-xs font-bold">دعوة الأصدقاء الآن</button>
-        `;
-        container.appendChild(refCard);
-
         tasks.forEach(t => {
             const card = document.createElement('div');
             card.className = `glass p-4 rounded-xl flex flex-col gap-3 mb-2 ${t.completed ? 'opacity-50' : ''}`;
@@ -1036,10 +1132,14 @@
                     </div>
                     <div class="flex-1 min-w-0 text-right">
                         <div class="text-sm font-medium text-white truncate">${ref.name}</div>
-                        <div class="text-[10px] text-gray-400">لاعب نشط</div>
+                        <div class="flex gap-2">
+                            <div class="text-[8px] text-purple-400 font-bold">⚡ ${Math.floor(ref.power || 0).toLocaleString()}</div>
+                            <div class="text-[8px] text-blue-400 font-bold">${(ref.ton || 0).toFixed(2)}T</div>
+                            <div class="text-[8px] text-green-400 font-bold">${(ref.usdt || 0).toFixed(1)}U</div>
+                        </div>
                     </div>
-                    <div class="text-left">
-                        <div class="text-[10px] text-amber-400 font-bold font-orbitron">${(ref.gold || 0).toLocaleString()}</div>
+                    <div class="text-left shrink-0">
+                        <div class="text-[10px] text-amber-400 font-bold font-orbitron">${Math.floor(ref.gold || 0).toLocaleString()}</div>
                         <div class="text-[8px] text-gray-500">ذهب</div>
                     </div>
                 </div>
@@ -1489,6 +1589,9 @@
 
         updateUI(); startEnergyRegen(); checkDailyReset();
 
+        // Timer for daily task countdown
+        setInterval(updateDailyChallengeUI, 60000);
+
         // Immediate UI Update from Telegram Data
         const display_name = user.first_name + (user.last_name ? ' ' + user.last_name : '');
         document.getElementById('headerName').textContent = display_name;
@@ -1520,12 +1623,12 @@
         // Market is always available for users as per new requirements
 
         // Attack status check
-        if (name === 'attack' && adminData && adminData.settings.attack_enabled === false) {
+        if (name === 'attack' && adminData && (adminData.settings.attack_enabled === false || adminData.settings.attack_enabled === '0')) {
             const attackTab = document.getElementById('attackTab');
             attackTab.innerHTML = `
                 <div class="h-full flex flex-col items-center justify-center p-10 text-center">
                     <div class="text-6xl mb-4">⚔️</div>
-                    <h2 class="text-2xl font-bold text-amber-500 mb-2">Soon...</h2>
+                    <h2 class="text-2xl font-bold text-amber-500 mb-2 font-orbitron">Soon...</h2>
                     <p class="text-gray-400 text-sm">نظام الهجوم قيد التطوير حالياً، انتظرونا قريباً!</p>
                 </div>
             `;
@@ -1589,6 +1692,13 @@
         const container = document.getElementById('homeDailyChallenge');
         if (!adminData) return;
 
+        const isEnabled = adminData.settings.daily_task_enabled === true || adminData.settings.daily_task_enabled === '1';
+        if (!isEnabled) {
+            container.classList.add('hidden');
+            return;
+        }
+        container.classList.remove('hidden');
+
         const winsRequired = adminData.settings.daily_task_wins_required || 20;
         const dailyReward = adminData.settings.daily_task_reward || {"ton": 0.1};
         const rewardText = Object.entries(dailyReward).map(([k, v]) => `${v} ${k.toUpperCase()}`).join(' & ');
@@ -1597,27 +1707,59 @@
         const isClaimed = playerData.daily_tasks_progress?.claimed || false;
         const progressPercent = Math.min(100, (winsProgress / winsRequired) * 100);
 
-        container.innerHTML = `
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 rounded-lg bg-amber-600 flex items-center justify-center text-xl shadow-lg">🏆</div>
-                <div class="flex-1">
-                    <h3 class="text-xs font-bold text-white mb-0.5">تحدي الفوز اليومي</h3>
-                    <p class="text-[9px] text-amber-300">فز بـ ${winsRequired} مباراة اليوم للحصول على ${rewardText}</p>
-                </div>
-            </div>
-            <div class="mb-3">
-                <div class="flex justify-between text-[9px] mb-1">
-                    <span class="text-gray-400">التقدم: ${winsProgress}/${winsRequired}</span>
-                    <span class="text-amber-400 font-bold">${progressPercent.toFixed(0)}%</span>
-                </div>
-                <div class="h-1.5 bg-gray-800 rounded-full overflow-hidden border border-white/5">
-                    <div class="h-full bg-gradient-to-r from-amber-600 to-amber-400" style="width: ${progressPercent}%"></div>
-                </div>
-            </div>
-            ${isClaimed
-                ? '<div class="w-full bg-white/10 text-gray-400 py-2 rounded-lg text-[10px] font-bold text-center">تم استلام المكافأة بنجاح ✅</div>'
-                : `<button onclick="claimDailyTaskReward()" class="w-full ${winsProgress >= winsRequired ? 'btn-primary text-black' : 'bg-white/5 text-gray-500'} py-2 rounded-lg text-[10px] font-bold transition-all" ${winsProgress < winsRequired ? 'disabled' : ''}>${winsProgress >= winsRequired ? '🎁 استلام المكافأة الآن' : 'بانتظار إكمال التحدي'}</button>`
+        // Countdown Logic
+        let timerText = "جاري الحساب...";
+        const expiryType = adminData.settings.daily_task_expiry_type || 'fixed';
+        const expiryValue = parseFloat(adminData.settings.daily_task_expiry_value || 24);
+
+        const now = new Date();
+        if (expiryType === 'fixed') {
+            const resetTime = new Date();
+            resetTime.setHours(23, 59, 59, 999);
+            const diff = resetTime - now;
+            const h = Math.floor(diff / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000);
+            timerText = `${h}س ${m}د`;
+        } else {
+            const startTime = new Date(adminData.settings.daily_task_start_time || now);
+            const expiryTime = new Date(startTime.getTime() + expiryValue * 3600000);
+            const diff = expiryTime - now;
+            if (diff <= 0) {
+                timerText = "منتهية";
+            } else {
+                const h = Math.floor(diff / 3600000);
+                const m = Math.floor((diff % 3600000) / 60000);
+                timerText = `${h}س ${m}د`;
             }
+        }
+
+        container.innerHTML = `
+            <div class="relative">
+                <div class="absolute -top-2 -left-2 bg-black/60 backdrop-blur-md border border-amber-500/30 rounded-lg px-2 py-0.5 text-[8px] text-amber-400 font-bold z-10 flex items-center gap-1 shadow-lg">
+                    <span class="w-1 h-1 rounded-full bg-amber-500 animate-pulse"></span>
+                    ${timerText}
+                </div>
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-amber-600 flex items-center justify-center text-xl shadow-lg">🏆</div>
+                    <div class="flex-1">
+                        <h3 class="text-xs font-bold text-white mb-0.5">تحدي الفوز اليومي</h3>
+                        <p class="text-[9px] text-amber-300">فز بـ ${winsRequired} مباراة اليوم للحصول على ${rewardText}</p>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="flex justify-between text-[9px] mb-1">
+                        <span class="text-gray-400">التقدم: ${winsProgress}/${winsRequired}</span>
+                        <span class="text-amber-400 font-bold">${progressPercent.toFixed(0)}%</span>
+                    </div>
+                    <div class="h-1.5 bg-gray-800 rounded-full overflow-hidden border border-white/5">
+                        <div class="h-full bg-gradient-to-r from-amber-600 to-amber-400" style="width: ${progressPercent}%"></div>
+                    </div>
+                </div>
+                ${isClaimed
+                    ? '<div class="w-full bg-white/10 text-gray-400 py-2 rounded-lg text-[10px] font-bold text-center">تم استلام المكافأة بنجاح ✅</div>'
+                    : `<button onclick="claimDailyTaskReward()" class="w-full ${winsProgress >= winsRequired ? 'btn-primary text-black' : 'bg-white/5 text-gray-500'} py-2 rounded-lg text-[10px] font-bold transition-all" ${winsProgress < winsRequired ? 'disabled' : ''}>${winsProgress >= winsRequired ? '🎁 استلام المكافأة الآن' : 'بانتظار إكمال التحدي'}</button>`
+                }
+            </div>
         `;
     }
     function startEnergyRegen() { setInterval(()=>{ if(playerData.energy<playerData.energyMax){playerData.energy++;updateUI();saveProgress();} },60000); }

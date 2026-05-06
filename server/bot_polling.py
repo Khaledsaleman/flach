@@ -44,26 +44,17 @@ def handle_update(update):
 
         welcome_text += "اضغط على الزر أدناه للدخول إلى اللعبة والبدء في المغامرة:"
 
+        # Append referrer to the URL to ensure it's captured
+        web_app_url = "https://khaledsaleman.github.io/flach/"
+        if referrer:
+            web_app_url += f"?startapp={referrer}"
+
         reply_markup = {
             "inline_keyboard": [[
-                {"text": "🎮 ابدأ اللعب الآن", "web_app": {"url": "https://khaledsaleman.github.io/flach/"}}
+                {"text": "🎮 ابدأ اللعب الآن", "web_app": {"url": web_app_url}}
             ]]
         }
         send_message(chat_id, welcome_text, reply_markup)
-
-    elif text == "/gift":
-        try:
-            response = requests.post(f"{BACKEND_URL}/trigger-event", json={
-                "user_id": user_id,
-                "type": "bonus_gold",
-                "payload": {"amount": 1000}
-            })
-            if response.status_code == 200:
-                send_message(chat_id, "🎁 <b>مفاجأة!</b> تم إرسال 1000 ذهب إلى حسابك. استمتع بها في تطوير قاعدتك! 🎉")
-            else:
-                send_message(chat_id, "❌ عذراً، لا يمكن معالجة طلبك حالياً.")
-        except Exception as e:
-            send_message(chat_id, "❌ خطأ في الاتصال بالسيرفر.")
 
 def main():
     if not BOT_TOKEN:

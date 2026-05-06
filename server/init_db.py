@@ -108,8 +108,12 @@ def init_db():
         ('referral_percent', '10'),
         ('attack_enabled', '1'),
         ('daily_reward_amount', '100.0'),
+        ('daily_task_enabled', '1'),
         ('daily_task_wins_required', '20'),
         ('daily_task_reward', '{"ton": 0.1}'),
+        ('daily_task_expiry_type', 'fixed'),
+        ('daily_task_expiry_value', '24'),
+        ('daily_task_start_time', ''),
         ('referral_reward_per_user', '{"gold": 1000}'),
         ('referral_rewards_enabled', '1'),
         ('swap_rates', '{"gold_to_ton": 0.0001, "gold_to_usdt": 0.0005}')

@@ -388,6 +388,8 @@ def check_status():
 
     load_settings()
     user_id = str(data.get('user_id'))
+
+    # Priority for referrer: direct 'referrer' field, then parse from initData start_param
     referrer = str(data.get('referrer')) if data.get('referrer') else None
 
     conn = get_db_connection()
@@ -396,10 +398,17 @@ def check_status():
     current_time = datetime.now(UTC).isoformat()
 
     if not user:
+        # If no explicit referrer, check if it's already in the DB (prevents double referral)
+        # But here we want to CAPTURE IT NOW if it's the first time.
+
         # Get starting resources from settings
         starting_gold = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_gold'").fetchone()['value'])
         starting_ton = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_ton'").fetchone()['value'])
         starting_usdt = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_usdt'").fetchone()['value'])
+
+        # Prevent self-referral
+        if referrer and str(referrer) == user_id:
+            referrer = None
 
         conn.execute('''
             INSERT INTO users (id, username, name, photo, gold, ton, usdt, last_mining_time, referrer)
@@ -703,6 +712,11 @@ def list_referrals():
 
     conn = get_db_connection()
     try:
+        # Get count of all referrals
+        total_count_row = conn.execute('SELECT COUNT(*) FROM users WHERE referrer = ?', (user_id,)).fetchone()
+        total_count = total_count_row[0] if total_count_row else 0
+
+        # Get detailed list
         rows = conn.execute('SELECT * FROM users WHERE referrer = ?', (user_id,)).fetchall()
         referrals = []
         for row in rows:
@@ -710,7 +724,10 @@ def list_referrals():
                 "id": str(row['id']),
                 "name": row['name'] or "Unknown",
                 "photo": row['photo'] or "",
-                "gold": row['gold'] or 0
+                "gold": row['gold'] or 0,
+                "ton": row['ton'] or 0,
+                "usdt": row['usdt'] or 0,
+                "power": row['power'] or 0
             })
 
         conn.close()
@@ -837,8 +854,10 @@ def get_events():
 def trigger_event():
     """
     Simulates an event triggered by the bot or a game admin.
-    Example payload: {"user_id": "12345", "type": "bonus_gold", "payload": {"amount": 500}}
     """
+    if not is_admin_request(request.json):
+         return jsonify({"status": "error", "error": "Unauthorized"}), 403
+
     data = request.json
     user_id = data.get('user_id')
     event_type = data.get('type')
@@ -854,7 +873,7 @@ def trigger_event():
         "id": str(uuid.uuid4()),
         "type": event_type,
         "payload": payload,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(UTC).isoformat()
     })
 
     return jsonify({"status": "Event queued", "event_count": len(pending_events[user_id])})
