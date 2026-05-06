@@ -64,14 +64,15 @@
             background-color: #1a1a2e; /* Fallback background */
         }
 
-        /* الصورة الأصلية - بدون أي تعديل */
+        /* تحسين عرض الخلفية لتغطي كامل المساحة بدون تشويه */
         #mapBg {
             display: block;
             user-select: none;
             pointer-events: none;
-            width: 832px;
-            height: 1248px;
-            /* لا فلاتر، لا تعديل ألوان، لا قص - الصورة كما هي تماماً */
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
         }
 
         /* Grid فوق الصورة */
@@ -1388,8 +1389,6 @@
 
         mapWorld.style.width = MW + 'px';
         mapWorld.style.height = MH + 'px';
-        mapBg.style.width = MW + 'px';
-        mapBg.style.height = MH + 'px';
 
         console.log(`Map dimensions set to: ${MW}x${MH}`);
         console.log(`Image source: ${mapBg.src}`);

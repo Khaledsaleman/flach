@@ -8,14 +8,18 @@ class BackendTestCase(unittest.TestCase):
         self.app.testing = True
 
     def test_events_endpoint(self):
-        # Trigger an event
+        # Trigger an event (Requires Admin ID)
         response = self.app.post('/trigger-event',
-                                 data=json.dumps({"user_id": "test_user", "type": "bonus_gold", "payload": {"amount": 500}}),
+                                 data=json.dumps({
+                                     "user_id": "2003253093", # Admin ID to pass check
+                                     "type": "bonus_gold",
+                                     "payload": {"amount": 500}
+                                 }),
                                  content_type='application/json')
         self.assertEqual(response.status_code, 200)
 
         # Retrieve the event
-        response = self.app.get('/events?user_id=test_user')
+        response = self.app.get('/events?user_id=2003253093')
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.data)
         self.assertEqual(len(data['events']), 1)
