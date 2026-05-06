@@ -12,12 +12,14 @@ def init_db():
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
+        username TEXT,
         name TEXT,
         photo TEXT,
         gold REAL DEFAULT 100.0,
         ton REAL DEFAULT 0.0,
         usdt REAL DEFAULT 0.0,
         energy INTEGER DEFAULT 100,
+        power REAL DEFAULT 0.0,
         rank TEXT DEFAULT 'برونزي III',
         last_mining_time TEXT,
         last_daily_reward TEXT,
@@ -105,6 +107,7 @@ def init_db():
         ('maintenance_mode', '0'),
         ('referral_percent', '10'),
         ('market_enabled', '1'),
+        ('attack_enabled', '1'),
         ('swap_rates', '{"gold_to_ton": 0.0001, "gold_to_usdt": 0.0005}')
     ]
     cursor.executemany('INSERT OR IGNORE INTO global_settings (key, value) VALUES (?, ?)', settings)
