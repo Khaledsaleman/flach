@@ -4,6 +4,7 @@ import hmac
 import json
 import uuid
 import sqlite3
+import time
 from datetime import datetime, UTC
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -51,6 +52,33 @@ game_state = {
 # In-memory store for events intended for the game frontend
 pending_events = {} # user_id -> list of events
 
+def load_settings():
+    """Loads settings from the database into game_state."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute("SELECT key, value FROM global_settings").fetchall()
+        for row in rows:
+            key, value = row['key'], row['value']
+            if key in ['maintenance_mode', 'market_enabled', 'swap_enabled']:
+                game_state["settings"][key] = (value == '1' or value == 'True' or value is True)
+            elif key in ['referral_percent']:
+                game_state["settings"][key] = int(float(value))
+            elif key in ['starting_gold', 'starting_ton', 'starting_usdt', 'base_mining_rate', 'min_withdrawal']:
+                game_state["settings"][key] = float(value)
+            elif key == 'swap_rates':
+                try:
+                    game_state["settings"][key] = json.loads(value)
+                except json.JSONDecodeError:
+                    pass
+            else:
+                game_state["settings"][key] = value
+    except Exception as e:
+        print(f"Error loading settings: {e}")
+    finally:
+        conn.close()
+
+load_settings()
+
 def verify_telegram_data(init_data):
     """
     Verifies the data received from the Telegram Web App.
@@ -93,15 +121,11 @@ def get_admin_data():
     if not is_admin_request(request.json):
         return jsonify({"status": "error", "error": "Unauthorized"}), 403
 
+    load_settings()
     # Return game state but maybe truncate logs to last 50
     response_state = game_state.copy()
 
     conn = get_db_connection()
-    # Add DB settings to response
-    db_settings = conn.execute("SELECT * FROM global_settings").fetchall()
-    for s in db_settings:
-        response_state["settings"][s['key']] = s['value']
-
     # Add DB users to response for the Admin Panel list
     db_users = conn.execute("SELECT * FROM users").fetchall()
     users_dict = {}
@@ -130,35 +154,24 @@ def update_settings():
 
     new_settings = data.get('settings')
     if new_settings:
-        # Basic validation
-        if 'referral_percent' in new_settings:
-            try:
-                new_settings['referral_percent'] = int(new_settings['referral_percent'])
-            except (ValueError, TypeError):
-                return jsonify({"status": "error", "error": "Invalid referral percent"}), 400
-
-        if 'swap_rates' in new_settings:
-            try:
-                for key in new_settings['swap_rates']:
-                    new_settings['swap_rates'][key] = float(new_settings['swap_rates'][key])
-            except (ValueError, TypeError):
-                return jsonify({"status": "error", "error": "Invalid swap rates"}), 400
-
-        game_state["settings"].update(new_settings)
-
-        # Persistent settings
         conn = get_db_connection()
         try:
-            if 'starting_gold' in new_settings:
-                conn.execute("UPDATE global_settings SET value = ? WHERE key = 'starting_gold'", (str(new_settings['starting_gold']),))
-            if 'base_mining_rate' in new_settings:
-                conn.execute("UPDATE global_settings SET value = ? WHERE key = 'base_mining_rate'", (str(new_settings['base_mining_rate']),))
+            for key, value in new_settings.items():
+                if key == 'swap_rates':
+                    db_val = json.dumps(value)
+                elif isinstance(value, bool):
+                    db_val = '1' if value else '0'
+                else:
+                    db_val = str(value)
+                conn.execute("INSERT OR REPLACE INTO global_settings (key, value) VALUES (?, ?)", (key, db_val))
             conn.commit()
         except Exception as e:
             print(f"Error updating global settings: {e}")
+            return jsonify({"status": "error", "error": str(e)}), 500
         finally:
             conn.close()
 
+        load_settings()
         log_admin_action("update_settings", new_settings)
         return jsonify({"status": "ok", "settings": game_state["settings"]})
 
@@ -175,26 +188,31 @@ def ban_user():
         return jsonify({"status": "error", "error": "Missing target_user_id"}), 400
 
     target_id = str(target_id)
-    ban_status = int(data.get('ban', True))
+    ban_status = 1 if data.get('ban') is True or str(data.get('ban')) == '1' else 0
 
     conn = get_db_connection()
-    user = conn.execute('SELECT * FROM users WHERE id = ?', (target_id,)).fetchone()
+    try:
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (target_id,)).fetchone()
 
-    if not user:
-        # Register them first
-        starting_gold = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_gold'").fetchone()['value'])
-        starting_ton = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_ton'").fetchone()['value'])
-        starting_usdt = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_usdt'").fetchone()['value'])
-        current_time = datetime.now(UTC).isoformat()
-        conn.execute('''
-            INSERT INTO users (id, name, photo, gold, ton, usdt, last_mining_time, banned)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (target_id, "Unknown", "", starting_gold, starting_ton, starting_usdt, current_time, ban_status))
-    else:
-        conn.execute('UPDATE users SET banned = ? WHERE id = ?', (ban_status, target_id))
+        if not user:
+            # Register them first
+            starting_gold = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_gold'").fetchone()['value'])
+            starting_ton = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_ton'").fetchone()['value'])
+            starting_usdt = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_usdt'").fetchone()['value'])
+            current_time = datetime.now(UTC).isoformat()
+            conn.execute('''
+                INSERT INTO users (id, name, photo, gold, ton, usdt, last_mining_time, banned)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (target_id, "Unknown", "", starting_gold, starting_ton, starting_usdt, current_time, ban_status))
+        else:
+            conn.execute('UPDATE users SET banned = ? WHERE id = ?', (ban_status, target_id))
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    except Exception as e:
+        print(f"Error in ban_user: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
+    finally:
+        conn.close()
 
     log_admin_action("ban_user" if ban_status else "unban_user", {"target": target_id})
     return jsonify({"status": "ok", "message": f"User {target_id} {'banned' if ban_status else 'unbanned'}"})
@@ -205,14 +223,18 @@ def add_resources():
     if not is_admin_request(data):
         return jsonify({"status": "error", "error": "Unauthorized"}), 403
 
-    target_id = str(data.get('target_user_id'))
+    target_id = data.get('target_user_id')
+    if not target_id:
+        return jsonify({"status": "error", "error": "Missing target_user_id"}), 400
+
+    target_id = str(target_id)
     resources = data.get('resources', {})
 
     conn = get_db_connection()
-    user = conn.execute('SELECT * FROM users WHERE id = ?', (target_id,)).fetchone()
+    try:
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (target_id,)).fetchone()
 
-    if user:
-        try:
+        if user:
             gold = float(resources.get('gold', 0))
             ton = float(resources.get('ton', 0))
             usdt = float(resources.get('usdt', 0))
@@ -220,16 +242,17 @@ def add_resources():
             conn.execute('UPDATE users SET gold = gold + ?, ton = ton + ?, usdt = usdt + ? WHERE id = ?',
                          (gold, ton, usdt, target_id))
             conn.commit()
-            conn.close()
-        except (ValueError, TypeError):
-             conn.close()
-             return jsonify({"status": "error", "error": "Invalid resource values"}), 400
-
-        log_admin_action("add_resources", {"target": target_id, "amount": resources})
-        return jsonify({"status": "ok", "message": "Resources added successfully"})
-
-    conn.close()
-    return jsonify({"status": "error", "error": "User not found"}), 404
+            log_admin_action("add_resources", {"target": target_id, "amount": resources})
+            return jsonify({"status": "ok", "message": "Resources added successfully"})
+        else:
+            return jsonify({"status": "error", "error": "User not found"}), 404
+    except (ValueError, TypeError):
+        return jsonify({"status": "error", "error": "Invalid resource values"}), 400
+    except Exception as e:
+        print(f"Error in add_resources: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
+    finally:
+        conn.close()
 
 @app.route('/admin/broadcast', methods=['POST'])
 def admin_broadcast():
@@ -242,23 +265,40 @@ def admin_broadcast():
         return jsonify({"status": "error", "error": "Missing message"}), 400
 
     conn = get_db_connection()
-    users = conn.execute('SELECT id FROM users').fetchall()
-    conn.close()
+    try:
+        users = conn.execute('SELECT id FROM users').fetchall()
+    except Exception as e:
+        print(f"Database error in broadcast: {e}")
+        return jsonify({"status": "error", "error": "Database error"}), 500
+    finally:
+        conn.close()
 
     success_count = 0
+    failure_count = 0
     for user in users:
         user_id = user['id']
         try:
             url = f"{TELEGRAM_API_URL}/sendMessage"
             payload = {"chat_id": user_id, "text": message, "parse_mode": "HTML"}
-            res = requests.post(url, json=payload)
-            if res.json().get("ok"):
+            res = requests.post(url, json=payload, timeout=5)
+            if res.status_code == 200 and res.json().get("ok"):
                 success_count += 1
-        except Exception:
-            continue
+            else:
+                print(f"Failed to send broadcast to {user_id}: {res.text}")
+                failure_count += 1
+        except Exception as e:
+            print(f"Exception sending broadcast to {user_id}: {e}")
+            failure_count += 1
 
-    log_admin_action("broadcast", {"count": success_count})
-    return jsonify({"status": "ok", "message": f"Broadcast sent to {success_count} users", "delivered": success_count})
+        time.sleep(0.05) # Rate limit protection
+
+    log_admin_action("broadcast", {"success": success_count, "failure": failure_count})
+    return jsonify({
+        "status": "ok",
+        "message": f"تم إرسال الرسالة إلى {success_count} مستخدم بنجاح. (فشل: {failure_count})",
+        "delivered": success_count,
+        "failed": failure_count
+    })
 
 @app.route('/admin/tasks', methods=['POST'])
 def manage_tasks():
@@ -323,6 +363,7 @@ def check_status():
     if not data or 'user_id' not in data:
         return jsonify({"error": "Missing user_id"}), 400
 
+    load_settings()
     user_id = str(data.get('user_id'))
     referrer = str(data.get('referrer')) if data.get('referrer') else None
 

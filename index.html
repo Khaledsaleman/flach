@@ -358,7 +358,7 @@
                             </div>
                             <div class="flex items-center justify-between">
                                 <span class="text-sm">نظام السوق</span>
-                                <button id="marketToggleBtn" onclick="adminAction('settings', {settings: {market_enabled: !adminData.settings.market_enabled}})" class="px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs">تشغيل</button>
+                                <button id="marketToggleBtn" onclick="toggleMarket()" class="px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs">تشغيل</button>
                             </div>
                         </div>
                     </div>
@@ -503,7 +503,7 @@
                 showToast(data.message || 'تمت العملية بنجاح', 'success');
                 refreshAdminData();
             } else {
-                showToast(data.error || 'فشلت العملية', 'error');
+                showToast(data.error || data.message || 'فشلت العملية', 'error');
             }
         } catch (e) {
             console.error("Admin action failed:", e);
@@ -528,12 +528,15 @@
 
     function updateAdminUI() {
         if (!adminData) return;
+        const isMaintenance = adminData.settings.maintenance_mode === true || adminData.settings.maintenance_mode === '1';
         const mBtn = document.getElementById('maintenanceBtn');
-        mBtn.textContent = adminData.settings.maintenance_mode ? 'إيقاف الصيانة' : 'بدء الصيانة';
-        mBtn.className = adminData.settings.maintenance_mode ? 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs';
+        mBtn.textContent = isMaintenance ? 'إيقاف الصيانة' : 'بدء الصيانة';
+        mBtn.className = isMaintenance ? 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs';
 
+        const isMarketEnabled = adminData.settings.market_enabled === true || adminData.settings.market_enabled === '1';
         const marketBtn = document.getElementById('marketToggleBtn');
-        marketBtn.textContent = adminData.settings.market_enabled ? 'إيقاف السوق' : 'تشغيل السوق';
+        marketBtn.textContent = isMarketEnabled ? 'إيقاف السوق' : 'تشغيل السوق';
+        marketBtn.className = isMarketEnabled ? 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs';
 
         const logsCont = document.getElementById('adminLogs');
         logsCont.innerHTML = adminData.admin_logs.map(log => `
@@ -589,7 +592,13 @@
     }
 
     function toggleMaintenance() {
-        adminAction('settings', { settings: { maintenance_mode: !adminData.settings.maintenance_mode } });
+        const isMaintenance = adminData.settings.maintenance_mode === true || adminData.settings.maintenance_mode === '1';
+        adminAction('settings', { settings: { maintenance_mode: !isMaintenance } });
+    }
+
+    function toggleMarket() {
+        const isMarketEnabled = adminData.settings.market_enabled === true || adminData.settings.market_enabled === '1';
+        adminAction('settings', { settings: { market_enabled: !isMarketEnabled } });
     }
 
     async function checkUserStatus() {
