@@ -59,7 +59,7 @@ def load_settings():
         rows = conn.execute("SELECT key, value FROM global_settings").fetchall()
         for row in rows:
             key, value = row['key'], row['value']
-            if key in ['maintenance_mode', 'market_enabled', 'swap_enabled']:
+            if key in ['maintenance_mode', 'market_enabled', 'attack_enabled', 'swap_enabled']:
                 game_state["settings"][key] = (value == '1' or value == 'True' or value is True)
             elif key in ['referral_percent']:
                 game_state["settings"][key] = int(float(value))
@@ -177,36 +177,59 @@ def update_settings():
 
     return jsonify({"status": "error", "error": "No settings provided"}), 400
 
+@app.route('/admin/users/search', methods=['POST'])
+def search_user():
+    data = request.json
+    if not is_admin_request(data):
+        return jsonify({"status": "error", "error": "Unauthorized"}), 403
+
+    query = data.get('query')
+    if not query:
+        return jsonify({"status": "error", "error": "Missing search query"}), 400
+
+    conn = get_db_connection()
+    # Search by ID or Username
+    user = conn.execute('SELECT * FROM users WHERE id = ? OR username = ?', (str(query), str(query))).fetchone()
+    conn.close()
+
+    if user:
+        return jsonify({
+            "status": "ok",
+            "user": {
+                "id": user['id'],
+                "username": user['username'],
+                "name": user['name'],
+                "photo": user['photo'],
+                "gold": user['gold'],
+                "ton": user['ton'],
+                "usdt": user['usdt'],
+                "power": user['power'],
+                "rank": user['rank'],
+                "banned": bool(user['banned'])
+            }
+        })
+    return jsonify({"status": "error", "error": "User not found"}), 404
+
 @app.route('/admin/users/ban', methods=['POST'])
 def ban_user():
     data = request.json
     if not is_admin_request(data):
         return jsonify({"status": "error", "error": "Unauthorized"}), 403
 
-    target_id = data.get('target_user_id')
-    if not target_id:
-        return jsonify({"status": "error", "error": "Missing target_user_id"}), 400
+    target_query = data.get('target_user_id') # Can be ID or Username
+    if not target_query:
+        return jsonify({"status": "error", "error": "Missing target user"}), 400
 
-    target_id = str(target_id)
     ban_status = 1 if data.get('ban') is True or str(data.get('ban')) == '1' else 0
 
     conn = get_db_connection()
     try:
-        user = conn.execute('SELECT * FROM users WHERE id = ?', (target_id,)).fetchone()
+        user = conn.execute('SELECT * FROM users WHERE id = ? OR username = ?', (str(target_query), str(target_query))).fetchone()
 
         if not user:
-            # Register them first
-            starting_gold = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_gold'").fetchone()['value'])
-            starting_ton = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_ton'").fetchone()['value'])
-            starting_usdt = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_usdt'").fetchone()['value'])
-            current_time = datetime.now(UTC).isoformat()
-            conn.execute('''
-                INSERT INTO users (id, name, photo, gold, ton, usdt, last_mining_time, banned)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (target_id, "Unknown", "", starting_gold, starting_ton, starting_usdt, current_time, ban_status))
-        else:
-            conn.execute('UPDATE users SET banned = ? WHERE id = ?', (ban_status, target_id))
+            return jsonify({"status": "error", "error": "المستخدم غير موجود في قاعدة البيانات"}), 404
 
+        conn.execute('UPDATE users SET banned = ? WHERE id = ?', (ban_status, user['id']))
         conn.commit()
     except Exception as e:
         print(f"Error in ban_user: {e}")
@@ -214,8 +237,8 @@ def ban_user():
     finally:
         conn.close()
 
-    log_admin_action("ban_user" if ban_status else "unban_user", {"target": target_id})
-    return jsonify({"status": "ok", "message": f"User {target_id} {'banned' if ban_status else 'unbanned'}"})
+    log_admin_action("ban_user" if ban_status else "unban_user", {"target": user['id']})
+    return jsonify({"status": "ok", "message": f"تم {'حظر' if ban_status else 'فك حظر'} المستخدم بنجاح"})
 
 @app.route('/admin/users/resources', methods=['POST'])
 def add_resources():
@@ -379,16 +402,16 @@ def check_status():
         starting_usdt = float(conn.execute("SELECT value FROM global_settings WHERE key = 'starting_usdt'").fetchone()['value'])
 
         conn.execute('''
-            INSERT INTO users (id, name, photo, gold, ton, usdt, last_mining_time, referrer)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (user_id, data.get('username', 'Player'), data.get('photo', ''),
+            INSERT INTO users (id, username, name, photo, gold, ton, usdt, last_mining_time, referrer)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, data.get('tg_username'), data.get('username', 'Player'), data.get('photo', ''),
               starting_gold, starting_ton, starting_usdt, current_time, referrer))
         conn.commit()
         user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
     else:
         # Update name and photo if they changed
-        conn.execute('UPDATE users SET name = ?, photo = ? WHERE id = ?',
-                     (data.get('username', user['name']), data.get('photo', user['photo']), user_id))
+        conn.execute('UPDATE users SET username = ?, name = ?, photo = ? WHERE id = ?',
+                     (data.get('tg_username', user['username']), data.get('username', user['name']), data.get('photo', user['photo']), user_id))
         conn.commit()
         user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
 
@@ -423,6 +446,7 @@ def check_status():
     user_data['balance'] = {"gold": user['gold'], "ton": user['ton'], "usdt": user['usdt']}
     user_data['banned'] = bool(user['banned'])
     user_data['energy'] = user['energy']
+    user_data['power'] = user['power']
     user_data['rank'] = user['rank']
     user_data['buildings'] = buildings_list
 
@@ -434,6 +458,16 @@ def check_status():
         "settings": game_state["settings"],
         "user": user_data
     })
+
+@app.route('/leaderboard', methods=['GET'])
+def get_leaderboard():
+    conn = get_db_connection()
+    # Top 50 by power
+    rows = conn.execute('SELECT id, username, name, photo, gold, ton, usdt, power FROM users ORDER BY power DESC LIMIT 50').fetchall()
+    conn.close()
+
+    leaderboard = [dict(r) for r in rows]
+    return jsonify({"status": "ok", "leaderboard": leaderboard})
 
 @app.route('/tasks/list', methods=['GET'])
 def list_tasks():
@@ -555,7 +589,9 @@ def verify_task():
         # Referral bonus
         referrer_id = user['referrer']
         if referrer_id:
-            bonus_percent = game_state["settings"]["referral_percent"] / 100.0
+            # Load referral percent directly from database to ensure it's up to date
+            ref_percent_row = conn.execute("SELECT value FROM global_settings WHERE key = 'referral_percent'").fetchone()
+            bonus_percent = (float(ref_percent_row['value']) if ref_percent_row else 10.0) / 100.0
             conn.execute('UPDATE users SET gold = gold + ?, ton = ton + ?, usdt = usdt + ? WHERE id = ?',
                          (gold_reward * bonus_percent, ton_reward * bonus_percent, usdt_reward * bonus_percent, referrer_id))
 
@@ -635,6 +671,7 @@ def save_buildings():
     buildings = data.get('buildings', [])
     balance = data.get('balance', {})
     energy = data.get('energy')
+    power = data.get('power')
     rank = data.get('rank')
 
     conn = get_db_connection()
@@ -647,6 +684,9 @@ def save_buildings():
 
         if energy is not None:
             conn.execute('UPDATE users SET energy = ? WHERE id = ?', (energy, user_id))
+
+        if power is not None:
+            conn.execute('UPDATE users SET power = ? WHERE id = ?', (power, user_id))
 
         if rank:
             conn.execute('UPDATE users SET rank = ? WHERE id = ?', (rank, user_id))

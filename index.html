@@ -6,11 +6,13 @@
     <title>CryptoClash - لعبة الكريبتو</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/@fontsource/tajawal@5.0.15/400,500,700,800/index.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Orbitron:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * { font-family: 'Tajawal', sans-serif; box-sizing: border-box; margin:0; padding:0; }
-        .font-orbitron { font-weight: 800; letter-spacing: 1px; }
-        body { background: #0a0a1a; color: #e5e7eb; overflow: hidden; position: fixed; width: 100%; height: 100%; }
+        * { font-family: 'Cairo', sans-serif; box-sizing: border-box; margin:0; padding:0; -webkit-tap-highlight-color: transparent; }
+        .font-orbitron { font-family: 'Orbitron', sans-serif; font-weight: 700; letter-spacing: 0.5px; }
+        body { background: #0a0a1a; color: #e5e7eb; overflow: hidden; position: fixed; width: 100%; height: 100%; font-size: 14px; }
+        h1, h2, h3 { line-height: 1.3; }
+        p { line-height: 1.5; color: #9ca3af; }
         .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
         .glass-dark { background: rgba(0,0,0,0.5); backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,0.08); }
         .glow-gold { box-shadow: 0 0 15px rgba(255,215,0,0.4); }
@@ -18,9 +20,10 @@
         .glow-red { box-shadow: 0 0 15px rgba(239,68,68,0.4); }
         .glow-purple { box-shadow: 0 0 15px rgba(147,51,234,0.4); }
         .glow-green { box-shadow: 0 0 15px rgba(34,197,94,0.4); }
-        .btn-primary { background: linear-gradient(135deg,#f59e0b,#d97706); }
-        .btn-secondary { background: linear-gradient(135deg,#3b82f6,#1d4ed8); }
-        .btn-danger { background: linear-gradient(135deg,#ef4444,#b91c1c); }
+        .btn-primary { background: linear-gradient(135deg,#f59e0b,#d97706); transition: opacity 0.2s; }
+        .btn-secondary { background: linear-gradient(135deg,#3b82f6,#1d4ed8); transition: opacity 0.2s; }
+        .btn-danger { background: linear-gradient(135deg,#ef4444,#b91c1c); transition: opacity 0.2s; }
+        .btn-primary:active, .btn-secondary:active, .btn-danger:active { opacity: 0.8; transform: scale(0.98); }
         .resource-bar { transition: width 0.5s ease-out; }
         .nav-item.active { background: rgba(255,255,255,0.15); box-shadow: inset 0 2px 0 #f59e0b; }
         @keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
@@ -192,13 +195,13 @@
     <!-- HEADER -->
     <header id="appHeader" class="glass-dark px-3 py-2.5">
         <div class="flex items-center justify-between mb-1.5">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="showUserProfile()">
                 <div id="headerPhotoContainer" class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center font-bold text-white text-xs border border-white/20 overflow-hidden">
                     <span id="headerInitial">C</span>
                     <img id="headerPhoto" src="" class="hidden w-full h-full object-cover">
                 </div>
                 <div>
-                    <div class="font-orbitron text-[11px] text-amber-400" id="headerName">اللاعب</div>
+                    <div class="font-bold text-[11px] text-amber-400" id="headerName">اللاعب</div>
                     <div class="text-[9px] text-gray-400" id="playerRank">الرتبة: برونزي III</div>
                 </div>
             </div>
@@ -279,11 +282,14 @@
             </div>
         </div>
 
-        <!-- Clan Tab -->
-        <div id="clanTab" class="tab-content">
+        <!-- Leaderboard Tab -->
+        <div id="leaderboardTab" class="tab-content">
             <div class="scroll-content p-3">
-                <h1 class="font-orbitron text-lg text-purple-400 mb-3">🛡️ العشيرة: CyberKnights</h1>
-                <div class="glass rounded-xl p-4 mb-4"><button onclick="startClanWar()" class="w-full btn-secondary py-2 rounded-lg text-sm font-medium text-white">بدء حرب عشائر</button></div>
+                <h1 class="font-orbitron text-lg text-purple-400 mb-3">🏆 لوحة المتصدرين</h1>
+                <div id="leaderboardList" class="space-y-2">
+                    <!-- Leaderboard items -->
+                    <div class="text-center py-10 opacity-50 text-xs">جاري تحميل المتصدرين...</div>
+                </div>
             </div>
         </div>
 
@@ -333,9 +339,13 @@
                         <h2 class="font-medium text-white mb-3 flex items-center gap-2"><span class="text-blue-400">👥</span> إدارة المستخدمين</h2>
                         <div class="space-y-3">
                             <div class="flex gap-2">
-                                <input type="text" id="targetUserId" placeholder="Telegram ID" class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
-                                <button onclick="adminAction('users/ban', {target_user_id: document.getElementById('targetUserId').value, ban: true})" class="btn-danger px-4 py-2 rounded-lg text-xs">حظر</button>
-                                <button onclick="adminAction('users/ban', {target_user_id: document.getElementById('targetUserId').value, ban: false})" class="btn-primary px-4 py-2 rounded-lg text-xs">فك الحظر</button>
+                                <input type="text" id="targetUserId" placeholder="ID أو Username" class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                <button onclick="adminSearchUser()" class="btn-secondary px-4 py-2 rounded-lg text-xs">بحث</button>
+                            </div>
+                            <div id="adminSearchResult" class="hidden p-2 bg-white/5 rounded-lg text-[10px] space-y-1"></div>
+                            <div class="flex gap-2">
+                                <button onclick="adminAction('users/ban', {target_user_id: document.getElementById('targetUserId').value, ban: true})" class="flex-1 btn-danger py-2 rounded-lg text-xs">حظر</button>
+                                <button onclick="adminAction('users/ban', {target_user_id: document.getElementById('targetUserId').value, ban: false})" class="flex-1 btn-primary py-2 rounded-lg text-xs">فك الحظر</button>
                             </div>
                             <div class="space-y-2 pt-2 border-t border-white/5">
                                 <p class="text-[10px] text-gray-400">إضافة موارد للمستخدم:</p>
@@ -359,6 +369,10 @@
                             <div class="flex items-center justify-between">
                                 <span class="text-sm">نظام السوق</span>
                                 <button id="marketToggleBtn" onclick="toggleMarket()" class="px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs">تشغيل</button>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm">نظام الهجوم</span>
+                                <button id="attackToggleBtn" onclick="toggleAttack()" class="px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs">تشغيل</button>
                             </div>
                         </div>
                     </div>
@@ -441,7 +455,7 @@
             <button onclick="switchTab('base')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="base"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg><span class="text-[9px] text-gray-400">القاعدة</span></button>
             <button onclick="switchTab('tasks')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="tasks"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg><span class="text-[9px] text-gray-400">المهام</span></button>
             <button onclick="switchTab('attack')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="attack"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg><span class="text-[9px] text-gray-400">هجوم</span></button>
-            <button onclick="switchTab('clan')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="clan"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg><span class="text-[9px] text-gray-400">العشيرة</span></button>
+            <button onclick="switchTab('leaderboard')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="leaderboard"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg><span class="text-[9px] text-gray-400">المتصدرين</span></button>
             <button onclick="switchTab('market')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition" data-tab="market"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg><span class="text-[9px] text-gray-400">السوق</span></button>
             <button id="adminNavBtn" onclick="switchTab('admin')" class="nav-item flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition hidden" data-tab="admin"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg><span class="text-[9px] text-gray-400">الإدارة</span></button>
         </div>
@@ -458,13 +472,43 @@
 <div id="referralsModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center">
     <div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5 max-h-[80vh] flex flex-col" style="animation:slideUp 0.3s ease">
         <div class="flex items-center justify-between mb-4">
-            <h3 class="font-orbitron text-lg text-blue-400">👥 قائمة الإحالات</h3>
+            <h3 class="font-bold text-lg text-blue-400">👥 قائمة الإحالات</h3>
             <button onclick="closeModal('referralsModal')" class="p-2 rounded-lg hover:bg-white/10">✕</button>
         </div>
         <div id="referralList" class="flex-1 overflow-y-auto space-y-3 scrollbar-hide">
             <!-- Referral items will be loaded here -->
             <div class="text-center py-10 opacity-50 text-xs">جاري تحميل البيانات...</div>
         </div>
+    </div>
+</div>
+
+<div id="userProfileModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center">
+    <div class="bg-gray-900 w-full sm:w-80 rounded-t-2xl sm:rounded-2xl p-6" style="animation:slideUp 0.3s ease">
+        <div class="flex justify-center mb-4">
+            <div id="profileBigPhoto" class="w-20 h-20 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-3xl font-bold text-white border-4 border-white/10 overflow-hidden shadow-xl">
+                <span id="profileBigInitial">C</span>
+                <img id="profileBigImg" src="" class="hidden w-full h-full object-cover">
+            </div>
+        </div>
+        <div class="text-center mb-6">
+            <h3 class="text-xl font-bold text-white" id="profileName">اللاعب</h3>
+            <p class="text-amber-500 text-xs font-bold" id="profileRankText">برونزي III</p>
+        </div>
+        <div class="space-y-3">
+            <div class="flex justify-between items-center p-2.5 bg-white/5 rounded-lg border border-white/5">
+                <span class="text-[10px] text-gray-400">المعرف (ID)</span>
+                <span class="text-xs font-mono text-blue-400" id="profileId">00000000</span>
+            </div>
+            <div class="flex justify-between items-center p-2.5 bg-white/5 rounded-lg border border-white/5">
+                <span class="text-[10px] text-gray-400">Username</span>
+                <span class="text-xs text-green-400" id="profileUsername">@username</span>
+            </div>
+            <div class="flex justify-between items-center p-2.5 bg-white/5 rounded-lg border border-white/5">
+                <span class="text-[10px] text-gray-400">القوة (Power)</span>
+                <span class="text-xs font-bold text-purple-400" id="profilePower">0</span>
+            </div>
+        </div>
+        <button onclick="closeModal('userProfileModal')" class="mt-6 w-full py-2.5 rounded-xl bg-white/10 text-white text-sm font-bold hover:bg-white/20 transition">إغلاق</button>
     </div>
 </div>
 
@@ -482,7 +526,7 @@
     const ADMIN_ID = 2003253093;
     let adminData = null;
 
-    let playerData = { gold:0, energy:85, ton:0, usdt:0, rank:'برونزي III', dailyRewardClaimed:false, energyMax:100 };
+    let playerData = { id:0, username: '', gold:0, energy:85, power:0, ton:0, usdt:0, rank:'برونزي III', dailyRewardClaimed:false, energyMax:100 };
 
     async function adminAction(endpoint, payload) {
         const user = tg.initDataUnsafe?.user;
@@ -555,6 +599,32 @@
         document.getElementById('mineRate').value = adminData.settings.base_mining_rate || 10;
     }
 
+    async function adminSearchUser() {
+        const query = document.getElementById('targetUserId').value;
+        if (!query) return;
+
+        const user = tg.initDataUnsafe?.user;
+        const res = await fetch(`${BACKEND_URL}/admin/users/search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: user.id, query: query })
+        });
+        const data = await res.json();
+        const resultDiv = document.getElementById('adminSearchResult');
+        if (data.status === 'ok') {
+            resultDiv.classList.remove('hidden');
+            resultDiv.innerHTML = `
+                <div class="text-amber-400 font-bold">${data.user.name} (@${data.user.username || 'N/A'})</div>
+                <div class="text-gray-400">ID: ${data.user.id} | Gold: ${data.user.gold.toFixed(0)}</div>
+                <div class="text-gray-400">Power: ${data.user.power} | Status: ${data.user.banned ? '❌ محظور' : '✅ نشط'}</div>
+            `;
+            document.getElementById('targetUserId').value = data.user.id;
+        } else {
+            resultDiv.classList.remove('hidden');
+            resultDiv.innerHTML = `<div class="text-red-400">${data.error}</div>`;
+        }
+    }
+
     function addNewTask() {
         const title = document.getElementById('taskTitle').value;
         const link = document.getElementById('taskLink').value;
@@ -569,6 +639,11 @@
             action: 'add',
             task: { title, link, chat_id: chatId, reward, type: chatId ? 'telegram' : 'link' }
         });
+    }
+
+    function deleteTask(id) {
+        if (!confirm('هل أنت متأكد من حذف هذه المهمة نهائياً؟')) return;
+        adminAction('tasks', { action: 'delete', task: { id: id } });
     }
 
     function adminAddResources() {
@@ -601,6 +676,11 @@
         adminAction('settings', { settings: { market_enabled: !isMarketEnabled } });
     }
 
+    function toggleAttack() {
+        const isAttackEnabled = adminData.settings.attack_enabled === true || adminData.settings.attack_enabled === '1';
+        adminAction('settings', { settings: { attack_enabled: !isAttackEnabled } });
+    }
+
     async function checkUserStatus() {
         const user = tg.initDataUnsafe?.user;
         if (!user) return;
@@ -613,6 +693,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     user_id: user.id,
+                    tg_username: user.username || '',
                     username: user.first_name + (user.last_name ? ' ' + user.last_name : ''),
                     photo: user.photo_url,
                     referrer: referrer
@@ -629,6 +710,8 @@
 
             // Update local balance and buildings from backend
             if (status.user) {
+                playerData.id = status.user.id;
+                playerData.username = status.user.username || '';
                 if (status.user.balance) {
                     playerData.gold = status.user.balance.gold;
                     playerData.ton = status.user.balance.ton;
@@ -636,6 +719,9 @@
                 }
                 if (status.user.energy !== undefined) {
                     playerData.energy = status.user.energy;
+                }
+                if (status.user.power !== undefined) {
+                    playerData.power = status.user.power;
                 }
                 if (status.user.rank) {
                     playerData.rank = status.user.rank;
@@ -704,9 +790,25 @@
     function renderTasks(tasks) {
         const container = document.getElementById('taskList');
         container.innerHTML = '';
+
+        // Add fixed Referral Task
+        const refCard = document.createElement('div');
+        refCard.className = 'glass p-4 rounded-xl border-l-4 border-blue-500 bg-blue-500/5 mb-3';
+        refCard.innerHTML = `
+            <div class="flex items-center gap-4 mb-3">
+                <div class="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center text-2xl">👥</div>
+                <div class="flex-1">
+                    <h3 class="text-sm font-bold text-white">مهمة الإحالة الدائمة</h3>
+                    <p class="text-[10px] text-blue-300">اربح ${adminData?.settings?.referral_percent || 10}% من أرباح أصدقائك!</p>
+                </div>
+            </div>
+            <button onclick="copyReferralLink()" class="w-full bg-blue-600 text-white py-2 rounded-lg text-xs font-bold">دعوة الأصدقاء الآن</button>
+        `;
+        container.appendChild(refCard);
+
         tasks.forEach(t => {
             const card = document.createElement('div');
-            card.className = `glass p-4 rounded-xl flex flex-col gap-3 ${t.completed ? 'opacity-50' : ''}`;
+            card.className = `glass p-4 rounded-xl flex flex-col gap-3 mb-2 ${t.completed ? 'opacity-50' : ''}`;
 
             const rewards = Object.entries(t.reward).map(([asset, amount]) =>
                 `<span class="text-[10px] text-amber-400 font-bold">+${amount} ${asset.toUpperCase()}</span>`
@@ -728,11 +830,18 @@
                 actionButtons = `<button onclick="handleGeneralTask(${t.id}, '${t.link}')" class="w-full bg-blue-500 text-white py-2 rounded-lg text-xs font-medium">تنفيذ المهمة</button>`;
             }
 
+            // If Admin, show delete button
+            const isAdmin = String(tg.initDataUnsafe?.user?.id) === String(ADMIN_ID);
+            const deleteBtn = isAdmin ? `<button onclick="deleteTask(${t.id})" class="p-1 text-red-500 hover:bg-red-500/10 rounded">✕</button>` : '';
+
             card.innerHTML = `
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center text-2xl shadow-inner border border-white/5">${icon}</div>
                     <div class="flex-1">
-                        <h3 class="text-sm font-medium text-white leading-tight">${t.title}</h3>
+                        <div class="flex justify-between">
+                            <h3 class="text-sm font-medium text-white leading-tight">${t.title}</h3>
+                            ${deleteBtn}
+                        </div>
                         <div class="flex items-center gap-1 mt-1">${rewards}</div>
                     </div>
                 </div>
@@ -760,13 +869,13 @@
                     buildings: buildings,
                     balance: { gold: playerData.gold, ton: playerData.ton, usdt: playerData.usdt },
                     energy: playerData.energy,
+                    power: playerData.power,
                     rank: playerData.rank
                 })
             });
             if (!response.ok) throw new Error('Network response was not ok');
         } catch (e) {
             console.error("Save progress failed:", e);
-            // Optionally show toast for critical failures
         }
     }
 
@@ -914,6 +1023,69 @@
                 showToast(`📢 ${event.payload.text}`, 'info');
                 break;
         }
+    }
+
+    async function loadLeaderboard() {
+        const container = document.getElementById('leaderboardList');
+        try {
+            const res = await fetch(`${BACKEND_URL}/leaderboard`);
+            const data = await res.json();
+            if (data.status === 'ok') {
+                renderLeaderboard(data.leaderboard);
+            }
+        } catch (e) { container.innerHTML = '<div class="text-center py-10 text-red-400">خطأ في التحميل</div>'; }
+    }
+
+    function renderLeaderboard(list) {
+        const container = document.getElementById('leaderboardList');
+        if (!list || list.length === 0) {
+            container.innerHTML = '<div class="text-center py-10 opacity-50">لا يوجد متصدرين حالياً</div>';
+            return;
+        }
+
+        container.innerHTML = list.map((user, index) => `
+            <div class="glass p-3 rounded-xl flex items-center gap-3 border border-white/5 relative overflow-hidden">
+                <div class="w-6 text-center font-bold text-gray-500 text-xs">${index + 1}</div>
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-xs font-bold border border-white/10 overflow-hidden shrink-0">
+                    ${user.photo ? `<img src="${user.photo}" class="w-full h-full object-cover">` : `<span>${user.name ? user.name[0] : '?'}</span>`}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-bold text-white truncate">${user.name}</div>
+                    <div class="flex gap-2 text-[8px]">
+                        <span class="text-purple-400 font-bold">⚡ ${user.power.toLocaleString()}</span>
+                        <span class="text-amber-400 font-bold">💰 ${user.gold.toLocaleString()}</span>
+                    </div>
+                </div>
+                <div class="text-left shrink-0">
+                    <div class="text-[9px] text-blue-400 font-bold">${user.ton.toFixed(4)} TON</div>
+                    <div class="text-[9px] text-green-400 font-bold">${user.usdt.toFixed(2)} USDT</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function showUserProfile() {
+        document.getElementById('profileName').textContent = document.getElementById('headerName').textContent;
+        document.getElementById('profileRankText').textContent = playerData.rank;
+        document.getElementById('profileId').textContent = playerData.id;
+        document.getElementById('profileUsername').textContent = playerData.username ? '@' + playerData.username : 'بدون Username';
+        document.getElementById('profilePower').textContent = playerData.power.toLocaleString();
+
+        const bigImg = document.getElementById('profileBigImg');
+        const bigInit = document.getElementById('profileBigInitial');
+        const headerImg = document.getElementById('headerPhoto');
+
+        if (!headerImg.classList.contains('hidden')) {
+            bigImg.src = headerImg.src;
+            bigImg.classList.remove('hidden');
+            bigInit.classList.add('hidden');
+        } else {
+            bigImg.classList.add('hidden');
+            bigInit.classList.remove('hidden');
+            bigInit.textContent = document.getElementById('headerInitial').textContent;
+        }
+
+        document.getElementById('userProfileModal').classList.remove('hidden');
     }
 
     // Start polling every 10 seconds
@@ -1279,21 +1451,59 @@
     });
 
     function switchTab(name) {
+        // Market visibility check
+        if (name === 'market' && adminData && adminData.settings.market_enabled === false) {
+            showToast('السوق مغلق حالياً', 'warning');
+            return;
+        }
+
+        // Attack status check
+        if (name === 'attack' && adminData && adminData.settings.attack_enabled === false) {
+            document.getElementById('attackTab').innerHTML = `
+                <div class="h-full flex flex-col items-center justify-center p-10 text-center">
+                    <div class="text-6xl mb-4">⚔️</div>
+                    <h2 class="text-2xl font-bold text-amber-500 mb-2">Soon...</h2>
+                    <p class="text-gray-400 text-sm">نظام الهجوم قيد التطوير حالياً، انتظرونا قريباً!</p>
+                </div>
+            `;
+        }
+
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(n => {
             n.classList.remove('active');
-            n.querySelector('span').classList.remove('text-amber-400');
-            n.querySelector('span').classList.add('text-gray-400');
+            const span = n.querySelector('span');
+            if (span) {
+                span.classList.remove('text-amber-400');
+                span.classList.add('text-gray-400');
+            }
         });
-        document.getElementById(name+'Tab').classList.add('active');
+
+        const targetTab = document.getElementById(name+'Tab');
+        if (targetTab) targetTab.classList.add('active');
+
         const an = document.querySelector(`[data-tab="${name}"]`);
         if (an) {
             an.classList.add('active');
-            an.querySelector('span').classList.remove('text-gray-400');
-            an.querySelector('span').classList.add('text-amber-400');
+            const span = an.querySelector('span');
+            if (span) {
+                span.classList.remove('text-gray-400');
+                span.classList.add('text-amber-400');
+            }
         }
+
         if (name === 'base') setTimeout(() => { initBase(); }, 50);
         if (name === 'tasks') loadTasks();
+        if (name === 'leaderboard') loadLeaderboard();
+
+        // Hide/Show Market Nav Item
+        const marketNav = document.querySelector('[data-tab="market"]');
+        if (marketNav && adminData) {
+            if (adminData.settings.market_enabled === false) {
+                marketNav.classList.add('hidden');
+            } else {
+                marketNav.classList.remove('hidden');
+            }
+        }
     }
 
     function updateUI() {
