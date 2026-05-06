@@ -59,13 +59,13 @@ def load_settings():
         rows = conn.execute("SELECT key, value FROM global_settings").fetchall()
         for row in rows:
             key, value = row['key'], row['value']
-            if key in ['maintenance_mode', 'attack_enabled', 'swap_enabled']:
+            if key in ['maintenance_mode', 'attack_enabled', 'swap_enabled', 'referral_rewards_enabled']:
                 game_state["settings"][key] = (value == '1' or value == 'True' or value is True)
             elif key in ['referral_percent', 'daily_task_wins_required']:
                 game_state["settings"][key] = int(float(value))
             elif key in ['starting_gold', 'starting_ton', 'starting_usdt', 'base_mining_rate', 'min_withdrawal', 'daily_reward_amount']:
                 game_state["settings"][key] = float(value)
-            elif key in ['swap_rates', 'daily_task_reward']:
+            elif key in ['swap_rates', 'daily_task_reward', 'referral_reward_per_user']:
                 try:
                     game_state["settings"][key] = json.loads(value)
                 except json.JSONDecodeError:
@@ -157,7 +157,7 @@ def update_settings():
         conn = get_db_connection()
         try:
             for key, value in new_settings.items():
-                if key in ['swap_rates', 'daily_task_reward']:
+                if key in ['swap_rates', 'daily_task_reward', 'referral_reward_per_user']:
                     db_val = json.dumps(value)
                 elif isinstance(value, bool):
                     db_val = '1' if value else '0'
@@ -469,11 +469,12 @@ def check_status():
 def get_leaderboard():
     conn = get_db_connection()
     # Dynamic real-time sorting by Power first, then Gold
-    # Filter out users without name (likely incomplete registrations/bots if any)
+    # Filter out fake users and incomplete registrations
     rows = conn.execute('''
         SELECT id, username, name, photo, gold, ton, usdt, power
         FROM users
-        WHERE name IS NOT NULL AND name != "" AND name != "Unknown"
+        WHERE name IS NOT NULL AND name != "" AND name NOT IN ("Unknown", "Friend", "Final User")
+        AND username NOT IN ("Friend", "Final User")
         ORDER BY power DESC, gold DESC
         LIMIT 50
     ''').fetchall()
@@ -515,10 +516,65 @@ def claim_daily_reward():
 
     return jsonify({"status": "ok", "message": f"تم استلام {reward_amount} ذهب", "reward": reward_amount})
 
+@app.route('/referrals/claim-rewards', methods=['POST'])
+def claim_referral_rewards():
+    data = request.json
+    user_id = str(data.get('user_id'))
+
+    load_settings()
+    if not game_state["settings"].get("referral_rewards_enabled", True):
+        return jsonify({"status": "error", "error": "مكافآت الإحالة معطلة حالياً"}), 400
+
+    conn = get_db_connection()
+    # Count real referrals
+    ref_count = conn.execute('''
+        SELECT COUNT(*) FROM users
+        WHERE referrer = ?
+        AND name NOT IN ("Friend", "Final User", "Unknown")
+    ''', (user_id,)).fetchone()[0]
+
+    user = conn.execute('SELECT referral_rewards_balance FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not user:
+        conn.close()
+        return jsonify({"status": "error", "error": "User not found"}), 404
+
+    claimed_count = int(user['referral_rewards_balance']) if user['referral_rewards_balance'] else 0
+    pending_count = ref_count - claimed_count
+
+    if pending_count <= 0:
+        conn.close()
+        return jsonify({"status": "error", "error": "لا توجد مكافآت جديدة للجمع"}), 400
+
+    reward_config = game_state["settings"].get("referral_reward_per_user", {"gold": 1000})
+
+    # Calculate total reward
+    gold_add = reward_config.get("gold", 0) * pending_count
+    ton_add = reward_config.get("ton", 0) * pending_count
+    usdt_add = reward_config.get("usdt", 0) * pending_count
+
+    conn.execute('''
+        UPDATE users
+        SET gold = gold + ?, ton = ton + ?, usdt = usdt + ?, referral_rewards_balance = ?
+        WHERE id = ?
+    ''', (gold_add, ton_add, usdt_add, ref_count, user_id))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "status": "ok",
+        "message": f"تم جمع مكافأة {pending_count} إحالة بنجاح!",
+        "reward": {"gold": gold_add, "ton": ton_add, "usdt": usdt_add}
+    })
+
 @app.route('/attack/perform', methods=['POST'])
 def perform_attack():
     data = request.json
     user_id = str(data.get('user_id'))
+
+    load_settings()
+    if not game_state["settings"].get("attack_enabled", True):
+        return jsonify({"status": "error", "error": "نظام الهجوم قيد التطوير حالياً، انتظرونا قريباً!"}), 400
 
     conn = get_db_connection()
     user = conn.execute('SELECT gold, energy, daily_tasks_progress FROM users WHERE id = ?', (user_id,)).fetchone()
