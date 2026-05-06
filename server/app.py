@@ -846,9 +846,13 @@ def get_events():
     if not user_id:
         return jsonify({"error": "Missing user_id"}), 400
 
+    load_settings()
     # Return and clear events for this user
     user_events = pending_events.pop(user_id, [])
-    return jsonify({"events": user_events})
+    return jsonify({
+        "events": user_events,
+        "settings": game_state["settings"]
+    })
 
 @app.route('/trigger-event', methods=['POST'])
 def trigger_event():
