@@ -864,6 +864,12 @@
                 return;
             }
 
+            // Ensure global settings are updated for all users
+            if (status.settings) {
+                if (!adminData) adminData = { settings: {} };
+                adminData.settings = status.settings;
+            }
+
             // Update local balance and buildings from backend
             if (status.user) {
                 playerData.id = status.user.id;
@@ -1176,6 +1182,14 @@
         try {
             const response = await fetch(`${BACKEND_URL}/events?user_id=${user.id}`);
             const data = await response.json();
+
+            // Sync settings globally
+            if (data.settings) {
+                if (!adminData) adminData = { settings: {} };
+                adminData.settings = data.settings;
+                updateUI();
+            }
+
             if (data.events && data.events.length > 0) {
                 data.events.forEach(processEvent);
             }
