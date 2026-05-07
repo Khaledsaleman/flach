@@ -135,6 +135,7 @@ def init_db():
         ('daily_task_start_time', ''),
         ('referral_reward_per_user', '{"gold": 1000}'),
         ('referral_rewards_enabled', '1'),
+        ('smart_support_enabled', '1'),
         ('swap_rates', '{"gold_to_ton": 0.0001, "gold_to_usdt": 0.0005}')
     ]
     cursor.executemany('INSERT OR IGNORE INTO global_settings (key, value) VALUES (?, ?)', settings)
