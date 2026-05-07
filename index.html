@@ -311,39 +311,31 @@
             <div class="scroll-content p-3">
                 <h1 class="font-orbitron text-lg text-blue-400 mb-4">📜 المهام والمكافآت</h1>
 
-                <!-- Organized Referral Section (Fixed at Top) -->
+                <!-- Optimized Referral Section (Luxury Compact) -->
                 <div class="mb-6">
-                    <div class="glass p-5 rounded-2xl border-l-4 border-amber-500 bg-gradient-to-br from-amber-500/5 to-transparent">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-xl shadow-inner">🤝</div>
-                            <div>
-                                <h2 class="font-bold text-white text-base">برنامج الإحالة المميز</h2>
-                                <p class="text-[10px] text-gray-400">شارك المتعة واربح مكافآت دائمة!</p>
+                    <div class="glass p-4 rounded-2xl border-b-2 border-amber-500/50 bg-gradient-to-b from-white/5 to-transparent shadow-xl glow-gold">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2">
+                                <span class="text-lg">🤝</span>
+                                <h2 class="font-bold text-white text-sm">برنامج الإحالة المميز</h2>
                             </div>
+                            <button onclick="copyReferralLink()" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-amber-400 transition-all active:scale-90 shadow-inner" title="نسخ الرابط">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
+                            </button>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-2 mb-4">
-                            <div class="bg-white/5 rounded-xl p-3 border border-white/5 text-center">
-                                <div class="text-[10px] text-gray-500 mb-1">نسبة الربح</div>
-                                <div class="text-sm font-bold text-amber-400" id="refPercentDisplay">10%</div>
-                            </div>
-                            <div class="bg-white/5 rounded-xl p-3 border border-white/5 text-center">
-                                <div class="text-[10px] text-gray-500 mb-1">المكافأة لكل صديق</div>
-                                <div class="text-sm font-bold text-green-400" id="refRewardDisplay">1,000</div>
-                            </div>
+                        <div class="bg-black/30 rounded-xl p-3 mb-3 border border-white/5 shadow-inner">
+                            <p id="referralSummaryLine" class="text-[10px] text-center leading-relaxed text-gray-300">
+                                ادعو صديق واربح <span id="refPercentCont" class="hidden"><span class="text-amber-400 font-bold" id="refPercentDisplay">0%</span> نسبة من أرباحه</span><span id="refPlusSign" class="hidden"> + </span><span id="refRewardCont" class="hidden"><span class="text-green-400 font-bold" id="refRewardDisplay"></span> مكافأة لكل إحالة</span>
+                            </p>
                         </div>
 
-                        <div class="space-y-3">
-                            <div class="flex gap-2">
-                                <button onclick="copyReferralLink()" class="flex-1 btn-primary py-3 rounded-xl text-xs font-bold text-black flex items-center justify-center gap-2 shadow-lg">
-                                    <span>🔗 نسخ الرابط</span>
-                                </button>
-                                <button onclick="openReferralsModal()" class="flex-1 bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all">
-                                    <span>👥 قائمة الإحالات</span>
-                                </button>
-                            </div>
-                            <button onclick="claimReferralRewards()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl text-xs font-black transition-all shadow-lg glow-green flex items-center justify-center gap-2 border border-emerald-500/30">
-                                <span>🎁 جمع كافة المكافآت المستحقة</span>
+                        <div class="flex gap-2">
+                            <button onclick="openReferralsModal()" class="flex-1 bg-white/5 hover:bg-white/10 text-white py-2.5 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 transition-all border border-white/10">
+                                <span>👥 الإحالات</span>
+                            </button>
+                            <button onclick="claimReferralRewards()" class="flex-[2] bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white py-2.5 rounded-xl text-[10px] font-black transition-all shadow-lg flex items-center justify-center gap-2 border border-white/10">
+                                <span>🎁 جمع المكافآت</span>
                             </button>
                         </div>
                     </div>
@@ -685,14 +677,38 @@
         document.getElementById('rateUsdt').value = adminData.settings.swap_rates.gold_to_usdt;
         document.getElementById('refPercent').value = adminData.settings.referral_percent;
 
-        // Update referral info in Tasks tab if visible
+        // Update referral info in Tasks tab (Optimized Logic)
+        const refPercent = adminData.settings.referral_percent || 0;
+        const refRewardConfig = adminData.settings.referral_reward_per_user || {};
+
         const rpd = document.getElementById('refPercentDisplay');
-        if (rpd) rpd.textContent = (adminData.settings.referral_percent || 10) + '%';
+        const rpc = document.getElementById('refPercentCont');
+        if (rpd && rpc) {
+            if (refPercent > 0) {
+                rpd.textContent = refPercent + '%';
+                rpc.classList.remove('hidden');
+            } else {
+                rpc.classList.add('hidden');
+            }
+        }
+
         const rrd = document.getElementById('refRewardDisplay');
-        if (rrd) {
-            const config = adminData.settings.referral_reward_per_user || {"gold": 1000};
-            const text = Object.entries(config).map(([k, v]) => `${v} ${k.toUpperCase()}`).join(' & ');
-            rrd.textContent = text;
+        const rrc = document.getElementById('refRewardCont');
+        if (rrd && rrc) {
+            const rewards = Object.entries(refRewardConfig).filter(([k, v]) => v > 0);
+            if (rewards.length > 0) {
+                rrd.textContent = rewards.map(([k, v]) => `${v} ${k.toUpperCase()}`).join(' & ');
+                rrc.classList.remove('hidden');
+            } else {
+                rrc.classList.add('hidden');
+            }
+        }
+
+        const rps = document.getElementById('refPlusSign');
+        if (rps) {
+            const hasPercent = refPercent > 0;
+            const hasReward = Object.values(refRewardConfig).some(v => v > 0);
+            rps.classList.toggle('hidden', !(hasPercent && hasReward));
         }
 
         document.getElementById('startGold').value = adminData.settings.starting_gold || 100;
