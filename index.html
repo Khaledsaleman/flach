@@ -326,7 +326,7 @@
 
                         <div class="bg-black/30 rounded-xl p-3 mb-3 border border-white/5 shadow-inner">
                             <p id="referralSummaryLine" class="text-[10px] text-center leading-relaxed text-gray-300">
-                                ادعو صديق واربح <span id="refPercentCont" class="hidden"><span class="text-amber-400 font-bold" id="refPercentDisplay">0%</span> نسبة من أرباحه</span><span id="refPlusSign" class="hidden"> + </span><span id="refRewardCont" class="hidden"><span class="text-green-400 font-bold" id="refRewardDisplay"></span> مكافأة لكل إحالة</span>
+                                ادعو صديق واربح <span id="refPercentCont" class="hidden"><span class="text-amber-400 font-bold" id="refPercentDisplay">0%</span> من أرباحه</span><span id="refPlusSign" class="hidden"> + </span><span id="refRewardCont" class="hidden"><span class="text-green-400 font-bold" id="refRewardDisplay"></span> مكافأة لكل إحالة</span>
                             </p>
                         </div>
 
@@ -645,38 +645,8 @@
         } catch (e) { console.error("Refresh admin data failed:", e); }
     }
 
-    function updateAdminUI() {
-        if (!adminData) return;
-        const isMaintenance = adminData.settings.maintenance_mode === true || adminData.settings.maintenance_mode === '1';
-        const mBtn = document.getElementById('maintenanceBtn');
-        mBtn.textContent = isMaintenance ? 'إيقاف الصيانة' : 'بدء الصيانة';
-        mBtn.className = isMaintenance ? 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs';
-
-        const isRefRewardsEnabled = adminData.settings.referral_rewards_enabled === true || adminData.settings.referral_rewards_enabled === '1';
-        const refRewBtn = document.getElementById('refRewardsToggleBtn');
-        if (refRewBtn) {
-            refRewBtn.textContent = isRefRewardsEnabled ? 'إيقاف مكافآت الإحالة' : 'تشغيل مكافآت الإحالة';
-            refRewBtn.className = isRefRewardsEnabled ? 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs';
-        }
-
-        const isAttackEnabled = adminData.settings.attack_enabled === true || adminData.settings.attack_enabled === '1';
-        const attackBtn = document.getElementById('attackToggleBtn');
-        attackBtn.textContent = isAttackEnabled ? 'إيقاف الهجوم' : 'تشغيل الهجوم';
-        attackBtn.className = isAttackEnabled ? 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs';
-
-        const logsCont = document.getElementById('adminLogs');
-        logsCont.innerHTML = adminData.admin_logs.map(log => `
-            <div class="border-b border-white/5 pb-1">
-                <span class="text-blue-400">[${log.action}]</span>
-                <span class="text-gray-500">${new Date(log.timestamp).toLocaleTimeString()}</span>:
-                ${JSON.stringify(log.details)}
-            </div>
-        `).reverse().join('');
-
-        document.getElementById('rateTon').value = adminData.settings.swap_rates.gold_to_ton;
-        document.getElementById('rateUsdt').value = adminData.settings.swap_rates.gold_to_usdt;
-        document.getElementById('refPercent').value = adminData.settings.referral_percent;
-
+    function syncReferralUI() {
+        if (!adminData || !adminData.settings) return;
         // Update referral info in Tasks tab (Optimized Logic)
         const refPercent = adminData.settings.referral_percent || 0;
         const refRewardConfig = adminData.settings.referral_reward_per_user || {};
@@ -710,6 +680,41 @@
             const hasReward = Object.values(refRewardConfig).some(v => v > 0);
             rps.classList.toggle('hidden', !(hasPercent && hasReward));
         }
+    }
+
+    function updateAdminUI() {
+        if (!adminData) return;
+        const isMaintenance = adminData.settings.maintenance_mode === true || adminData.settings.maintenance_mode === '1';
+        const mBtn = document.getElementById('maintenanceBtn');
+        mBtn.textContent = isMaintenance ? 'إيقاف الصيانة' : 'بدء الصيانة';
+        mBtn.className = isMaintenance ? 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs';
+
+        const isRefRewardsEnabled = adminData.settings.referral_rewards_enabled === true || adminData.settings.referral_rewards_enabled === '1';
+        const refRewBtn = document.getElementById('refRewardsToggleBtn');
+        if (refRewBtn) {
+            refRewBtn.textContent = isRefRewardsEnabled ? 'إيقاف مكافآت الإحالة' : 'تشغيل مكافآت الإحالة';
+            refRewBtn.className = isRefRewardsEnabled ? 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs';
+        }
+
+        const isAttackEnabled = adminData.settings.attack_enabled === true || adminData.settings.attack_enabled === '1';
+        const attackBtn = document.getElementById('attackToggleBtn');
+        attackBtn.textContent = isAttackEnabled ? 'إيقاف الهجوم' : 'تشغيل الهجوم';
+        attackBtn.className = isAttackEnabled ? 'px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs' : 'px-4 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs';
+
+        const logsCont = document.getElementById('adminLogs');
+        logsCont.innerHTML = adminData.admin_logs.map(log => `
+            <div class="border-b border-white/5 pb-1">
+                <span class="text-blue-400">[${log.action}]</span>
+                <span class="text-gray-500">${new Date(log.timestamp).toLocaleTimeString()}</span>:
+                ${JSON.stringify(log.details)}
+            </div>
+        `).reverse().join('');
+
+        document.getElementById('rateTon').value = adminData.settings.swap_rates.gold_to_ton;
+        document.getElementById('rateUsdt').value = adminData.settings.swap_rates.gold_to_usdt;
+        document.getElementById('refPercent').value = adminData.settings.referral_percent;
+
+        syncReferralUI();
 
         document.getElementById('startGold').value = adminData.settings.starting_gold || 100;
         document.getElementById('mineRate').value = adminData.settings.base_mining_rate || 10;
@@ -1141,7 +1146,6 @@
                 <div class="text-center py-12 px-4">
                     <div class="text-4xl mb-4">🤝</div>
                     <div class="text-sm text-white mb-2 font-bold">لا يوجد إحالات حتى الآن</div>
-                    <div class="text-[11px] text-gray-400">قم بدعوة أصدقائك لربح المكافآت والحصول على 10% من أرباحهم!</div>
                 </div>
             `;
             return;
@@ -1788,6 +1792,7 @@
         document.getElementById('energyBar').style.width = `${(playerData.energy/playerData.energyMax)*100}%`;
 
         updateDailyChallengeUI();
+        syncReferralUI();
     }
 
     function updateDailyChallengeUI() {
