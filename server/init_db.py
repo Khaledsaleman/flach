@@ -98,6 +98,25 @@ def init_db():
     )
     ''')
 
+    # Support FAQs table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS support_faqs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        question TEXT,
+        answer TEXT
+    )
+    ''')
+
+    # Support Agents table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS support_agents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        username TEXT,
+        photo TEXT
+    )
+    ''')
+
     # Default settings
     settings = [
         ('starting_gold', '100.0'),
@@ -129,6 +148,18 @@ def init_db():
     # cursor.execute("SELECT COUNT(*) FROM tasks")
     # if cursor.fetchone()[0] == 0:
     #     cursor.executemany('INSERT INTO tasks (title, reward_gold, reward_ton, reward_usdt, type, link, chat_id) VALUES (?, ?, ?, ?, ?, ?, ?)', default_tasks)
+
+    # Default FAQs
+    default_faqs = [
+        ("كيف أربح GOLD؟", "يمكنك ربح الذهب من خلال ترقية مناجم الذهب في قاعدتك، الفوز في المعارك، وإكمال المهام اليومية."),
+        ("كيف يعمل نظام الإحالة؟", "قم بدعوة أصدقائك باستخدام رابط الإحالة الخاص بك واربح نسبة من أرباحهم بالإضافة إلى مكافأة فورية عند انضمامهم."),
+        ("كيف أسحب TON؟", "يمكنك سحب عملات TON من خلال قسم المحفظة عند وصولك للحد الأدنى للسحب."),
+        ("كيف أطور القاعدة؟", "اضغط على أي مبنى في قاعدتك لرؤية متطلبات الترقية، ثم اضغط على زر ترقية إذا كنت تملك الموارد الكافية."),
+        ("ماذا أفعل إذا واجهت مشكلة؟", "يمكنك التواصل مباشرة مع فريق الدعم من خلال الضغط على 'التواصل مع وكيل' في هذه القائمة.")
+    ]
+    cursor.execute("SELECT COUNT(*) FROM support_faqs")
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany('INSERT INTO support_faqs (question, answer) VALUES (?, ?)', default_faqs)
 
     conn.commit()
     conn.close()

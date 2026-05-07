@@ -208,8 +208,9 @@
                 </div>
             </div>
             <div class="flex items-center gap-1.5">
-                <button onclick="showWalletModal()" class="p-1 rounded glass hover:bg-white/10"><svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg></button>
                 <button onclick="showSettingsModal()" class="p-1 rounded glass hover:bg-white/10"><svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button>
+                <button onclick="showWalletModal()" class="p-1 rounded glass hover:bg-white/10"><svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg></button>
+                <button onclick="showSupportModal()" class="p-1 rounded glass hover:bg-white/10" title="الدعم الفني"><svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/></svg></button>
             </div>
         </div>
         <div class="grid grid-cols-4 gap-1.5 mb-1.5">
@@ -503,6 +504,34 @@
                         </div>
                     </div>
 
+                    <!-- Support Management -->
+                    <div class="glass p-4 rounded-xl border border-blue-500/20">
+                        <h2 class="font-medium text-white mb-3 flex items-center gap-2"><span class="text-blue-400">🎧</span> إدارة نظام الدعم</h2>
+                        <div class="space-y-4">
+                            <!-- Add FAQ -->
+                            <div class="space-y-2 p-2 bg-white/5 rounded-lg">
+                                <p class="text-[10px] text-blue-300 font-bold">إضافة سؤال وجواب</p>
+                                <input type="text" id="adminFaqQuestion" placeholder="السؤال" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                <textarea id="adminFaqAnswer" rows="2" placeholder="الإجابة" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm"></textarea>
+                                <button onclick="adminManageSupport('faqs', 'add')" class="w-full btn-secondary py-1.5 rounded-lg text-xs">إضافة FAQ</button>
+                            </div>
+
+                            <!-- Add Agent -->
+                            <div class="space-y-2 p-2 bg-white/5 rounded-lg">
+                                <p class="text-[10px] text-amber-300 font-bold">إضافة وكيل دعم</p>
+                                <input type="text" id="adminAgentName" placeholder="الاسم" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                <input type="text" id="adminAgentUser" placeholder="يوزر تيليجرام (بدون @)" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                <button onclick="adminManageSupport('agents', 'add')" class="w-full btn-primary py-1.5 rounded-lg text-xs text-black">إضافة وكيل</button>
+                            </div>
+
+                            <!-- List & Delete -->
+                            <div class="space-y-2">
+                                <button onclick="loadAdminSupportLists()" class="w-full py-1.5 rounded-lg bg-white/10 text-white text-xs">عرض وتعديل القوائم الحالية</button>
+                                <div id="adminSupportLists" class="hidden space-y-3 pt-2"></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Broadcast -->
                     <div class="glass p-4 rounded-xl">
                         <h2 class="font-medium text-white mb-3 flex items-center gap-2"><span class="text-purple-400">📢</span> رسالة جماعية</h2>
@@ -543,6 +572,60 @@
 <div id="walletModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center"><div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5" style="animation:slideUp 0.3s ease"><div class="flex items-center justify-between mb-3"><h3 class="font-orbitron text-lg text-amber-400">💰 المحفظة</h3><button onclick="closeModal('walletModal')" class="p-2 rounded-lg hover:bg-white/10">✕</button></div><div class="space-y-3"><div class="p-3 bg-white/5 rounded-lg"><div class="text-sm text-gray-400">محفظة TON</div><div class="font-orbitron text-sm text-blue-400">24.5 TON</div></div><div class="p-3 bg-white/5 rounded-lg"><div class="text-sm text-gray-400">محفظة USDT</div><div class="font-orbitron text-sm text-green-400">150 USDT</div></div></div></div></div>
 
 <div id="settingsModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center"><div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5" style="animation:slideUp 0.3s ease"><div class="flex items-center justify-between mb-3"><h3 class="font-orbitron text-lg text-gray-300">⚙️ الإعدادات</h3><button onclick="closeModal('settingsModal')" class="p-2 rounded-lg hover:bg-white/10">✕</button></div><div class="space-y-3"><div class="flex items-center justify-between p-3 bg-white/5 rounded-lg"><span>الإشعارات</span><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" checked><div class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div></label></div><button onclick="closeModal('settingsModal')" class="w-full btn-danger py-2 rounded-lg text-sm font-medium text-white">إغلاق</button></div></div></div>
+
+<div id="supportModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center">
+    <div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5 max-h-[85vh] flex flex-col" style="animation:slideUp 0.3s ease">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">🎧</span>
+                <h3 class="font-bold text-lg text-blue-400">مركز الدعم والمساعدة</h3>
+            </div>
+            <button onclick="closeModal('supportModal')" class="p-2 rounded-lg hover:bg-white/10">✕</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto scrollbar-hide space-y-4">
+            <!-- FAQ Section -->
+            <div>
+                <p class="text-[10px] text-gray-500 mb-2 font-bold uppercase tracking-wider">الأسئلة الشائعة</p>
+                <div id="faqList" class="space-y-2">
+                    <!-- FAQs loaded dynamically -->
+                </div>
+            </div>
+
+            <!-- Bot Auto-Response Area -->
+            <div id="supportResponse" class="hidden glass p-3 rounded-xl border-blue-500/30 bg-blue-500/5 animate-pulse">
+                <div class="flex items-start gap-2">
+                    <span class="text-lg">🤖</span>
+                    <div>
+                        <p class="text-[10px] text-blue-300 font-bold mb-1">المساعد الذكي</p>
+                        <p id="supportResponseText" class="text-xs text-white leading-relaxed"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agents Section -->
+            <div>
+                <p class="text-[10px] text-gray-500 mb-2 font-bold uppercase tracking-wider">تواصل مباشر مع الدعم</p>
+                <div id="agentList" class="space-y-2">
+                    <!-- Admin/Developer Account (Always present) -->
+                    <button id="devAgentBtn" onclick="tg.openTelegramLink('https://t.me/khaledsaleman')" class="w-full glass p-3 rounded-xl flex items-center gap-3 border-amber-500/20 hover:bg-white/5 transition-all">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold border border-white/20">K</div>
+                        <div class="flex-1 text-right">
+                            <div class="text-xs font-bold text-white">خالد سليمان (المطور)</div>
+                            <div class="text-[9px] text-gray-400">متاح للتواصل المباشر</div>
+                        </div>
+                        <span class="text-xs">📞</span>
+                    </button>
+                    <!-- Other agents loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-white/5">
+            <p class="text-[9px] text-center text-gray-500">نحن هنا لمساعدتك على مدار الساعة!</p>
+        </div>
+    </div>
+</div>
 
 <div id="referralsModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center">
     <div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5 max-h-[80vh] flex flex-col" style="animation:slideUp 0.3s ease">
@@ -1965,6 +2048,117 @@
         t.className=`p-3 rounded-lg border ${cols[type]} backdrop-blur-sm toast-enter`;
         t.textContent=msg; c.appendChild(t);
         setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(()=>t.remove(),300);},3000);
+    }
+
+    async function showSupportModal() {
+        document.getElementById('supportModal').classList.remove('hidden');
+        document.getElementById('supportResponse').classList.add('hidden');
+
+        try {
+            const res = await fetch(`${BACKEND_URL}/support/data`);
+            const data = await res.json();
+
+            // Render FAQs
+            const faqCont = document.getElementById('faqList');
+            faqCont.innerHTML = data.faqs.map(f => `
+                <button onclick="handleSupportFaq(${JSON.stringify(f).replace(/"/g, '&quot;')})" class="w-full text-right p-2.5 rounded-xl bg-white/5 border border-white/5 hover:border-blue-500/50 transition-all active:scale-95">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-white">${f.question}</span>
+                        <span class="text-[10px] text-blue-400">❓</span>
+                    </div>
+                </button>
+            `).join('');
+
+            // Render Agents
+            const agentCont = document.getElementById('agentList');
+            const devBtn = document.getElementById('devAgentBtn');
+            agentCont.innerHTML = '';
+            if (devBtn) agentCont.appendChild(devBtn);
+
+            data.agents.forEach(a => {
+                const btn = document.createElement('button');
+                btn.onclick = () => tg.openTelegramLink(`https://t.me/${a.username}`);
+                btn.className = "w-full glass p-3 rounded-xl flex items-center gap-3 border-white/5 hover:bg-white/5 transition-all mb-2";
+                btn.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold border border-white/20">${a.name[0]}</div>
+                    <div class="flex-1 text-right">
+                        <div class="text-xs font-bold text-white">${a.name}</div>
+                        <div class="text-[9px] text-gray-400">وكيل دعم متصل</div>
+                    </div>
+                    <span class="text-xs">💬</span>
+                `;
+                agentCont.appendChild(btn);
+            });
+
+        } catch (e) { console.error("Load support failed:", e); }
+    }
+
+    function handleSupportFaq(faq) {
+        const respArea = document.getElementById('supportResponse');
+        const respText = document.getElementById('supportResponseText');
+        respArea.classList.remove('hidden');
+        respText.textContent = faq.answer;
+        respArea.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function adminManageSupport(type, action, id = null) {
+        const payload = { action, id };
+        if (action === 'add') {
+            if (type === 'faqs') {
+                payload.question = document.getElementById('adminFaqQuestion').value;
+                payload.answer = document.getElementById('adminFaqAnswer').value;
+            } else {
+                payload.name = document.getElementById('adminAgentName').value;
+                payload.username = document.getElementById('adminAgentUser').value;
+            }
+        }
+
+        const user = tg.initDataUnsafe?.user;
+        const res = await fetch(`${BACKEND_URL}/admin/support/${type}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: user.id, initData: tg.initData, ...payload })
+        });
+        const data = await res.json();
+        if (data.status === 'ok') {
+            showToast('تم التحديث بنجاح', 'success');
+            if (action === 'add') {
+                if (type === 'faqs') {
+                    document.getElementById('adminFaqQuestion').value = '';
+                    document.getElementById('adminFaqAnswer').value = '';
+                } else {
+                    document.getElementById('adminAgentName').value = '';
+                    document.getElementById('adminAgentUser').value = '';
+                }
+            }
+            loadAdminSupportLists();
+        }
+    }
+
+    async function loadAdminSupportLists() {
+        const listCont = document.getElementById('adminSupportLists');
+        listCont.classList.remove('hidden');
+        listCont.innerHTML = '<p class="text-center text-[10px] opacity-50">جاري التحميل...</p>';
+
+        const res = await fetch(`${BACKEND_URL}/support/data`);
+        const data = await res.json();
+
+        let html = '<div class="space-y-2 pt-2"><p class="text-[9px] text-blue-300 font-bold">الأسئلة الحالية:</p>';
+        data.faqs.forEach(f => {
+            html += `<div class="flex justify-between items-center bg-white/5 p-2 rounded text-[10px]">
+                <span class="truncate flex-1">${f.question}</span>
+                <button onclick="adminManageSupport('faqs', 'delete', ${f.id})" class="text-red-500 px-2">حذف</button>
+            </div>`;
+        });
+        html += '</div><div class="space-y-2 mt-4"><p class="text-[9px] text-amber-300 font-bold">الوكلاء الحاليون:</p>';
+        data.agents.forEach(a => {
+            html += `<div class="flex justify-between items-center bg-white/5 p-2 rounded text-[10px]">
+                <span>${a.name} (@${a.username})</span>
+                <button onclick="adminManageSupport('agents', 'delete', ${a.id})" class="text-red-500 px-2">حذف</button>
+            </div>`;
+        });
+        html += '</div>';
+        listCont.innerHTML = html;
     }
 
     document.querySelectorAll('.modal-backdrop').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.add('hidden'); }));
