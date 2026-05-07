@@ -31,6 +31,8 @@
         .modal-backdrop { background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
         .toast-enter { animation: toastSlide 0.3s ease forwards; }
         @keyframes toastSlide { from { transform:translateY(-20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+        @keyframes messagePop { from { transform:scale(0.9); opacity:0; } to { transform:scale(1); opacity:1; } }
+        .animate-enter { animation: messagePop 0.3s ease-out forwards; }
         .energy-bar { background: linear-gradient(90deg,#ef4444,#f59e0b,#22c55e); }
         .scrollbar-hide::-webkit-scrollbar { display:none; }
         .scrollbar-hide { -ms-overflow-style:none; scrollbar-width:none; }
@@ -524,6 +526,15 @@
                                 <button onclick="adminManageSupport('agents', 'add')" class="w-full btn-primary py-1.5 rounded-lg text-xs text-black">إضافة وكيل</button>
                             </div>
 
+                            <!-- System Controls -->
+                            <div class="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+                                <span class="text-[10px] text-white">تفعيل الدعم الذكي</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="adminSmartSupportToggle" class="sr-only peer" checked onchange="toggleSmartSupport()">
+                                    <div class="w-9 h-5 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                                </label>
+                            </div>
+
                             <!-- List & Delete -->
                             <div class="space-y-2">
                                 <button onclick="loadAdminSupportLists()" class="w-full py-1.5 rounded-lg bg-white/10 text-white text-xs">عرض وتعديل القوائم الحالية</button>
@@ -574,55 +585,56 @@
 <div id="settingsModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center"><div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5" style="animation:slideUp 0.3s ease"><div class="flex items-center justify-between mb-3"><h3 class="font-orbitron text-lg text-gray-300">⚙️ الإعدادات</h3><button onclick="closeModal('settingsModal')" class="p-2 rounded-lg hover:bg-white/10">✕</button></div><div class="space-y-3"><div class="flex items-center justify-between p-3 bg-white/5 rounded-lg"><span>الإشعارات</span><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" checked><div class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div></label></div><button onclick="closeModal('settingsModal')" class="w-full btn-danger py-2 rounded-lg text-sm font-medium text-white">إغلاق</button></div></div></div>
 
 <div id="supportModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center">
-    <div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5 max-h-[85vh] flex flex-col" style="animation:slideUp 0.3s ease">
-        <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-2">
-                <span class="text-xl">🎧</span>
-                <h3 class="font-bold text-lg text-blue-400">مركز الدعم والمساعدة</h3>
-            </div>
-            <button onclick="closeModal('supportModal')" class="p-2 rounded-lg hover:bg-white/10">✕</button>
-        </div>
-
-        <div class="flex-1 overflow-y-auto scrollbar-hide space-y-4">
-            <!-- FAQ Section -->
-            <div>
-                <p class="text-[10px] text-gray-500 mb-2 font-bold uppercase tracking-wider">الأسئلة الشائعة</p>
-                <div id="faqList" class="space-y-2">
-                    <!-- FAQs loaded dynamically -->
+    <div class="bg-[#0f0f1e] w-full sm:w-[450px] rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-white/10" style="animation:slideUp 0.3s ease">
+        <!-- Support Header -->
+        <div class="p-4 bg-gradient-to-r from-blue-900/40 to-indigo-900/40 border-b border-white/10 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/40">
+                    <span class="text-xl">🤖</span>
                 </div>
-            </div>
-
-            <!-- Bot Auto-Response Area -->
-            <div id="supportResponse" class="hidden glass p-3 rounded-xl border-blue-500/30 bg-blue-500/5 animate-pulse">
-                <div class="flex items-start gap-2">
-                    <span class="text-lg">🤖</span>
-                    <div>
-                        <p class="text-[10px] text-blue-300 font-bold mb-1">المساعد الذكي</p>
-                        <p id="supportResponseText" class="text-xs text-white leading-relaxed"></p>
+                <div>
+                    <h3 class="font-bold text-sm text-white">المساعد الذكي</h3>
+                    <div class="flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                        <span class="text-[9px] text-gray-400">متصل الآن</span>
                     </div>
                 </div>
             </div>
-
-            <!-- Agents Section -->
-            <div>
-                <p class="text-[10px] text-gray-500 mb-2 font-bold uppercase tracking-wider">تواصل مباشر مع الدعم</p>
-                <div id="agentList" class="space-y-2">
-                    <!-- Admin/Developer Account (Always present) -->
-                    <button id="devAgentBtn" onclick="tg.openTelegramLink('https://t.me/khaledsaleman')" class="w-full glass p-3 rounded-xl flex items-center gap-3 border-amber-500/20 hover:bg-white/5 transition-all">
-                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold border border-white/20">K</div>
-                        <div class="flex-1 text-right">
-                            <div class="text-xs font-bold text-white">خالد سليمان (المطور)</div>
-                            <div class="text-[9px] text-gray-400">متاح للتواصل المباشر</div>
-                        </div>
-                        <span class="text-xs">📞</span>
-                    </button>
-                    <!-- Other agents loaded here -->
-                </div>
-            </div>
+            <button onclick="closeModal('supportModal')" class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">✕</button>
         </div>
 
-        <div class="mt-4 pt-4 border-t border-white/5">
-            <p class="text-[9px] text-center text-gray-500">نحن هنا لمساعدتك على مدار الساعة!</p>
+        <!-- Chat Area -->
+        <div id="supportChatArea" class="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide bg-[#0a0a1a]">
+            <!-- Dynamic messages will appear here -->
+             <div class="flex flex-col items-center py-4 opacity-50">
+                 <span class="text-xs text-gray-500">مرحباً بك في مركز الدعم</span>
+             </div>
+        </div>
+
+        <!-- Quick FAQs (Fixed above input) -->
+        <div id="supportQuickFaqs" class="px-4 py-2 border-t border-white/5 bg-white/2 flex gap-2 overflow-x-auto scrollbar-hide">
+            <!-- FAQ buttons loaded here -->
+        </div>
+
+        <!-- Message Input -->
+        <div class="p-3 bg-[#151525] border-t border-white/10 flex items-center gap-2">
+            <input type="text" id="supportInput" placeholder="اكتب استفسارك هنا..." class="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500/50 text-white">
+            <button onclick="sendSupportMessage()" class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-lg active:scale-90 transition-transform">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for choosing Agent -->
+<div id="agentSelectionModal" class="fixed inset-0 modal-backdrop z-[60] hidden flex items-end sm:items-center justify-center">
+    <div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5 max-h-[60vh] flex flex-col border border-white/10" style="animation:slideUp 0.3s ease">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-base text-amber-400">تحدث مع وكيل دعم</h3>
+            <button onclick="closeModal('agentSelectionModal')" class="p-2">✕</button>
+        </div>
+        <div id="agentList" class="flex-1 overflow-y-auto space-y-2 scrollbar-hide">
+            <!-- Agents loaded here -->
         </div>
     </div>
 </div>
@@ -819,6 +831,11 @@
         document.getElementById('adminDailyTaskExpiryValue').value = adminData.settings.daily_task_expiry_value || 24;
 
         document.getElementById('adminRefRewardConfig').value = JSON.stringify(adminData.settings.referral_reward_per_user || {"gold": 1000});
+
+        const smartSupportToggle = document.getElementById('adminSmartSupportToggle');
+        if (smartSupportToggle) {
+            smartSupportToggle.checked = adminData.settings.smart_support_enabled !== false;
+        }
     }
 
     function updateDailyTaskSettings() {
@@ -2050,55 +2067,139 @@
         setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(()=>t.remove(),300);},3000);
     }
 
+    let supportFaqsData = [];
+    let supportAgentsData = [];
+
     async function showSupportModal() {
         document.getElementById('supportModal').classList.remove('hidden');
-        document.getElementById('supportResponse').classList.add('hidden');
+        const chatArea = document.getElementById('supportChatArea');
+        chatArea.innerHTML = ''; // Clear previous session
 
         try {
             const res = await fetch(`${BACKEND_URL}/support/data`);
             const data = await res.json();
+            supportFaqsData = data.faqs;
+            supportAgentsData = data.agents;
 
-            // Render FAQs
-            const faqCont = document.getElementById('faqList');
-            faqCont.innerHTML = data.faqs.map(f => `
-                <button onclick="handleSupportFaq(${JSON.stringify(f).replace(/"/g, '&quot;')})" class="w-full text-right p-2.5 rounded-xl bg-white/5 border border-white/5 hover:border-blue-500/50 transition-all active:scale-95">
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs text-white">${f.question}</span>
-                        <span class="text-[10px] text-blue-400">❓</span>
-                    </div>
+            // Render Quick FAQs buttons
+            const faqQuickCont = document.getElementById('supportQuickFaqs');
+            faqQuickCont.innerHTML = supportFaqsData.map(f => `
+                <button onclick="handleSupportFaq(${f.id})" class="shrink-0 px-3 py-1.5 rounded-full bg-blue-600/20 border border-blue-500/30 text-[10px] text-blue-300 hover:bg-blue-600/40 transition-all active:scale-95 whitespace-nowrap">
+                    ${f.question}
                 </button>
             `).join('');
 
-            // Render Agents
-            const agentCont = document.getElementById('agentList');
-            const devBtn = document.getElementById('devAgentBtn');
-            agentCont.innerHTML = '';
-            if (devBtn) agentCont.appendChild(devBtn);
+            // Initial bot message
+            addChatMessage('bot', 'مرحباً بك! أنا مساعدك الذكي. كيف يمكنني مساعدتك اليوم؟ يمكنك كتابة سؤالك أو اختيار أحد الأسئلة الشائعة.');
 
-            data.agents.forEach(a => {
-                const btn = document.createElement('button');
-                btn.onclick = () => tg.openTelegramLink(`https://t.me/${a.username}`);
-                btn.className = "w-full glass p-3 rounded-xl flex items-center gap-3 border-white/5 hover:bg-white/5 transition-all mb-2";
-                btn.innerHTML = `
-                    <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold border border-white/20">${a.name[0]}</div>
-                    <div class="flex-1 text-right">
-                        <div class="text-xs font-bold text-white">${a.name}</div>
-                        <div class="text-[9px] text-gray-400">وكيل دعم متصل</div>
-                    </div>
-                    <span class="text-xs">💬</span>
-                `;
-                agentCont.appendChild(btn);
-            });
+        // Allow Enter key to send message
+        document.getElementById('supportInput').onkeypress = (e) => {
+            if (e.key === 'Enter') sendSupportMessage();
+        };
 
         } catch (e) { console.error("Load support failed:", e); }
     }
 
-    function handleSupportFaq(faq) {
-        const respArea = document.getElementById('supportResponse');
-        const respText = document.getElementById('supportResponseText');
-        respArea.classList.remove('hidden');
-        respText.textContent = faq.answer;
-        respArea.scrollIntoView({ behavior: 'smooth' });
+    function addChatMessage(type, text, isAction = false) {
+        const chatArea = document.getElementById('supportChatArea');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `flex ${type === 'user' ? 'justify-end' : 'justify-start'} w-full animate-enter`;
+
+        const innerClass = type === 'user'
+            ? 'bg-blue-600 text-white rounded-t-2xl rounded-bl-2xl'
+            : 'bg-white/10 text-gray-200 rounded-t-2xl rounded-br-2xl border border-white/5';
+
+        msgDiv.innerHTML = `
+            <div class="max-w-[80%] px-4 py-2.5 shadow-lg ${innerClass}">
+                <p class="text-xs leading-relaxed">${text}</p>
+                ${isAction ? `<button onclick="openAgentSelection()" class="mt-2 w-full py-1.5 bg-amber-500 text-black font-bold text-[10px] rounded-lg shadow-md active:scale-95 transition-all">📞 Contact Support</button>` : ''}
+            </div>
+        `;
+        chatArea.appendChild(msgDiv);
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    function handleSupportFaq(id) {
+        const faq = supportFaqsData.find(f => f.id === id);
+        if (!faq) return;
+
+        addChatMessage('user', faq.question);
+        setTimeout(() => {
+            addChatMessage('bot', faq.answer);
+        }, 600);
+    }
+
+    function sendSupportMessage() {
+        const input = document.getElementById('supportInput');
+        const text = input.value.trim();
+        if (!text) return;
+
+        addChatMessage('user', text);
+        input.value = '';
+
+        // Bot Logic
+        setTimeout(() => {
+            if (adminData && adminData.settings.smart_support_enabled === false) {
+                addChatMessage('bot', 'نظام الدعم الذكي معطل حالياً. يمكنك التواصل مع وكيل الدعم مباشرة.', true);
+            } else {
+                const botResponse = findSmartResponse(text);
+                addChatMessage('bot', botResponse.text, botResponse.needsAgent);
+            }
+        }, 800);
+    }
+
+    function findSmartResponse(query) {
+        const q = query.toLowerCase();
+
+        // Priority 1: Match FAQs by keywords
+        for (const faq of supportFaqsData) {
+            const keywords = faq.question.toLowerCase().split(' ');
+            if (keywords.some(k => k.length > 2 && q.includes(k))) {
+                return { text: faq.answer, needsAgent: false };
+            }
+        }
+
+        // Priority 2: General topics
+        if (q.includes('ذهب') || q.includes('gold')) return { text: 'يمكنك زيادة إنتاج الذهب عن طريق ترقية مناجم الذهب من قسم "القاعدة" أو الفوز في المعارك.', needsAgent: false };
+    if (q.includes('سحب') || q.includes('ton') || q.includes('usdt') || q.includes('شحن') || q.includes('إيداع')) return { text: 'للسحب أو الإيداع، توجه إلى قسم المحفظة. تأكد من ربط محفظة TON الخاصة بك.', needsAgent: false };
+    if (q.includes('إحالة') || q.includes('صديق')) return { text: 'نظام الإحالة يمنحك نسبة من أرباح أصدقائك بالإضافة لمكافأة فورية عند تسجيلهم. تأكد من استخدام الرابط الصحيح.', needsAgent: false };
+    if (q.includes('بناء') || q.includes('تطوير') || q.includes('ترقية')) return { text: 'يمكنك بناء منشآت جديدة أو ترقية المباني الحالية من قسم "القاعدة" لزيادة قوتك وإنتاجك.', needsAgent: false };
+    if (q.includes('خطأ') || q.includes('مشكلة') || q.includes('عطل')) return { text: 'نأسف لمواجهتك مشكلة. يرجى وصف المشكلة بدقة أو التواصل مع وكيل الدعم.', needsAgent: true };
+
+        // Fallback
+        return {
+            text: 'عذراً، لم أستطع فهم استفسارك بدقة. يمكنك محاولة إعادة صياغة السؤال، أو التواصل مع أحد وكلاء الدعم المتاحين حالياً.',
+            needsAgent: true
+        };
+    }
+
+    function openAgentSelection() {
+        const modal = document.getElementById('agentSelectionModal');
+        const list = document.getElementById('agentList');
+        modal.classList.remove('hidden');
+
+        if (!supportAgentsData || supportAgentsData.length === 0) {
+            list.innerHTML = '<p class="text-center text-xs text-gray-500 py-4 italic">لا يوجد وكلاء متوفرون حالياً</p>';
+            return;
+        }
+
+        list.innerHTML = supportAgentsData.map(a => `
+            <button onclick="tg.openTelegramLink('https://t.me/${a.username}')" class="w-full glass p-3 rounded-xl flex items-center gap-3 border-white/5 hover:bg-white/10 transition-all mb-2">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold border border-white/20 overflow-hidden">
+                    ${a.photo ? `<img src="${a.photo}" class="w-full h-full object-cover">` : `<span>${a.name[0]}</span>`}
+                </div>
+                <div class="flex-1 text-right">
+                    <div class="text-xs font-bold text-white">Support Agent</div>
+                    <div class="text-[9px] text-gray-400 font-bold text-blue-400">${a.name}</div>
+                </div>
+                <span class="text-xs">💬</span>
+            </button>
+        `).join('');
+    }
+
+    function toggleSmartSupport() {
+        const isEnabled = document.getElementById('adminSmartSupportToggle').checked;
+        adminAction('settings', { settings: { smart_support_enabled: isEnabled } });
     }
 
     async function adminManageSupport(type, action, id = null) {
