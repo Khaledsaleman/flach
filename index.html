@@ -870,7 +870,12 @@
         const user = tg.initDataUnsafe?.user;
         if (!user) return;
 
-        const referrer = tg.initDataUnsafe?.start_param || null;
+        // Better Referrer Detection: check start_param first, then URL
+        let referrer = tg.initDataUnsafe?.start_param || null;
+        if (!referrer) {
+            const urlParams = new URLSearchParams(window.location.search);
+            referrer = urlParams.get('startapp') || urlParams.get('start');
+        }
 
         try {
             const response = await fetch(`${BACKEND_URL}/check-status`, {
@@ -1145,7 +1150,7 @@
             container.innerHTML = `
                 <div class="text-center py-12 px-4">
                     <div class="text-4xl mb-4">🤝</div>
-                    <div class="text-sm text-white mb-2 font-bold">لا يوجد إحالات حتى الآن</div>
+                    <div class="text-sm text-white mb-2 font-bold">لا يوجد إحالات</div>
                 </div>
             `;
             return;
@@ -1153,28 +1158,34 @@
 
         container.innerHTML = referrals.map((ref, index) => {
             const initial = ref.name ? ref.name[0] : '?';
+            const displayName = ref.username ? `@${ref.username}` : ref.name;
             const photoHtml = ref.photo && ref.photo !== ""
-                ? `<img src="${ref.photo}" class="w-10 h-10 rounded-full object-cover border border-white/10 shadow-sm" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                   <div class="hidden w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 items-center justify-center text-sm font-bold border border-white/10 shadow-sm">${initial}</div>`
-                : `<div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm font-bold border border-white/10 shadow-sm">${initial}</div>`;
+                ? `<img src="${ref.photo}" class="w-12 h-12 rounded-full object-cover border-2 border-amber-500/30 shadow-lg" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                   <div class="hidden w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 items-center justify-center text-lg font-bold border-2 border-white/20 shadow-lg text-white">${initial}</div>`
+                : `<div class="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-lg font-bold border-2 border-white/20 shadow-lg text-white">${initial}</div>`;
 
             return `
-                <div class="glass p-3 rounded-xl flex items-center gap-3 border border-white/5 shadow-sm">
-                    <div class="text-[10px] font-orbitron text-gray-500 w-4 text-center">#${index + 1}</div>
-                    <div class="relative w-10 h-10">
+                <div class="glass p-4 rounded-2xl flex items-center gap-4 border border-white/5 shadow-md mb-2">
+                    <div class="relative w-12 h-12">
                         ${photoHtml}
+                        <div class="absolute -top-1 -right-1 bg-amber-500 text-black text-[9px] font-bold px-1.5 rounded-full border border-gray-900">${index + 1}</div>
                     </div>
                     <div class="flex-1 min-w-0 text-right">
-                        <div class="text-sm font-medium text-white truncate">${ref.name}</div>
-                        <div class="flex gap-2">
-                            <div class="text-[8px] text-purple-400 font-bold">⚡ ${Math.floor(ref.power || 0).toLocaleString()}</div>
-                            <div class="text-[8px] text-blue-400 font-bold">${(ref.ton || 0).toFixed(2)}T</div>
-                            <div class="text-[8px] text-green-400 font-bold">${(ref.usdt || 0).toFixed(1)}U</div>
+                        <div class="text-base font-bold text-white truncate flex items-center gap-2">
+                            <span>👤</span>
+                            <span>${displayName}</span>
                         </div>
-                    </div>
-                    <div class="text-left shrink-0">
-                        <div class="text-[10px] text-amber-400 font-bold font-orbitron">${Math.floor(ref.gold || 0).toLocaleString()}</div>
-                        <div class="text-[8px] text-gray-500">ذهب</div>
+                        <div class="flex flex-wrap gap-2 mt-1">
+                            <div class="text-[11px] text-amber-400 font-bold flex items-center gap-1">
+                                <span>🪙</span>
+                                <span>GOLD: ${Math.floor(ref.gold || 0).toLocaleString()}</span>
+                            </div>
+                            ${ref.ton > 0 ? `
+                            <div class="text-[11px] text-blue-400 font-bold flex items-center gap-1 border-r border-white/10 pr-2">
+                                <span>💎</span>
+                                <span>TON: ${ref.ton.toFixed(2)}</span>
+                            </div>` : ''}
+                        </div>
                     </div>
                 </div>
             `;

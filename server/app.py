@@ -718,6 +718,7 @@ def list_referrals():
         for row in rows:
             referrals.append({
                 "id": str(row['id']),
+                "username": row['username'] or "",
                 "name": row['name'] or "Unknown",
                 "photo": row['photo'] or "",
                 "gold": row['gold'] or 0,
