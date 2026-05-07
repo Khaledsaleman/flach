@@ -1657,19 +1657,42 @@
         checkUserStatus();
     });
 
+    let originalAttackTabHTML = '';
+    let attackDisabledAnim = null;
     function switchTab(name) {
-        // Market is always available for users as per new requirements
+        if (!originalAttackTabHTML) {
+            originalAttackTabHTML = document.getElementById('attackTab').innerHTML;
+        }
 
         // Attack status check
-        if (name === 'attack' && adminData && (adminData.settings.attack_enabled === false || adminData.settings.attack_enabled === '0')) {
+        if (name === 'attack') {
             const attackTab = document.getElementById('attackTab');
-            attackTab.innerHTML = `
-                <div class="h-full flex flex-col items-center justify-center p-10 text-center">
-                    <div class="text-6xl mb-4">⚔️</div>
-                    <h2 class="text-2xl font-bold text-amber-500 mb-2 font-orbitron">Soon...</h2>
-                    <p class="text-gray-400 text-sm">نظام الهجوم قيد التطوير حالياً، انتظرونا قريباً!</p>
-                </div>
-            `;
+            if (adminData && (adminData.settings.attack_enabled === false || adminData.settings.attack_enabled === '0')) {
+                if (attackDisabledAnim) {
+                    attackDisabledAnim.destroy();
+                    attackDisabledAnim = null;
+                }
+                attackTab.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center p-10 text-center">
+                        <div id="attackDisabledEmojiAnim" class="w-32 h-32 mb-4 mx-auto"></div>
+                        <h2 class="text-2xl font-bold text-amber-500 mb-2 font-orbitron">Soon...</h2>
+                        <p class="text-gray-400 text-sm">نظام الهجوم قيد التطوير حالياً، انتظرونا قريباً!</p>
+                    </div>
+                `;
+                attackDisabledAnim = lottie.loadAnimation({
+                    container: document.getElementById('attackDisabledEmojiAnim'),
+                    renderer: 'svg',
+                    loop: true,
+                    autoplay: true,
+                    path: 'IMOJ/TgSticker_81d21d3f.json'
+                });
+            } else {
+                if (attackDisabledAnim) {
+                    attackDisabledAnim.destroy();
+                    attackDisabledAnim = null;
+                }
+                attackTab.innerHTML = originalAttackTabHTML;
+            }
         }
 
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
