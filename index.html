@@ -232,7 +232,7 @@
             <div class="scroll-content p-3">
                 <div class="glass rounded-xl p-3 mb-3 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30">
                     <div class="flex items-center justify-between w-full">
-                        <div class="flex items-center gap-2"><span class="text-3xl">👋</span><div><h2 class="font-orbitron text-amber-400 text-base">مرحباً</h2><p class="text-sm text-gray-300" id="welcomeMsg">ابدأ مغامرتك!</p></div></div>
+                        <div class="flex items-center gap-2"><div id="welcomeEmojiAnim" class="w-10 h-10"></div><div><h2 class="font-orbitron text-amber-400 text-base">مرحباً</h2><p class="text-sm text-gray-300" id="welcomeMsg">ابدأ مغامرتك!</p></div></div>
                         <div id="userPhotoContainer" class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center text-lg font-bold text-white border-2 border-white/20 overflow-hidden">
                             <span id="userInitial">C</span>
                             <img id="userPhoto" src="" class="hidden w-full h-full object-cover">
@@ -1599,6 +1599,15 @@
 
     // Core
     document.addEventListener('DOMContentLoaded', () => {
+        // Initialize Welcome Animated Emoji
+        lottie.loadAnimation({
+            container: document.getElementById('welcomeEmojiAnim'),
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            path: 'IMOJ/TgSticker_fad810fe.json'
+        });
+
         // Initialize Base Button Animated Emoji
         lottie.loadAnimation({
             container: document.getElementById('baseEmojiAnim'),
