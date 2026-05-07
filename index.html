@@ -249,10 +249,13 @@
                 </div>
                 <div class="grid grid-cols-2 gap-2 mb-3">
                     <button onclick="switchTab('base')" class="glass rounded-xl p-3 text-right hover:bg-white/10 transition glow-blue col-span-1">
-                        <div id="baseEmojiAnim" class="w-10 h-10 mb-1"></div>
+                        <div id="baseEmojiAnim" class="w-8 h-8 mb-1 mr-0 ml-auto"></div>
                         <div class="font-orbitron text-sm text-blue-400">قاعدتي</div>
                     </button>
-                    <button onclick="switchTab('attack')" class="glass rounded-xl p-3 text-right hover:bg-white/10 transition glow-red col-span-1"><span class="text-xl mb-1 block">⚔️</span><div class="font-orbitron text-sm text-red-400">هجوم</div></button>
+                    <button onclick="switchTab('attack')" class="glass rounded-xl p-3 text-right hover:bg-white/10 transition glow-red col-span-1">
+                        <div id="attackEmojiAnim" class="w-8 h-8 mb-1 mr-0 ml-auto"></div>
+                        <div class="font-orbitron text-sm text-red-400">هجوم</div>
+                    </button>
                 </div>
 
                 <!-- Daily Win Challenge Section -->
@@ -1603,6 +1606,15 @@
             loop: true,
             autoplay: true,
             path: 'IMOJ/TgSticker_566ea08a.json'
+        });
+
+        // Initialize Attack Button Animated Emoji
+        lottie.loadAnimation({
+            container: document.getElementById('attackEmojiAnim'),
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            path: 'IMOJ/TgSticker_81d21d3f.json'
         });
 
         const user = tg.initDataUnsafe?.user;
