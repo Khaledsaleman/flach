@@ -40,11 +40,7 @@ game_state = {
         "min_withdrawal": 5.0
     },
     "users": {}, # user_id -> {banned: bool, name: str, photo: str, joined: str, completed_tasks: [], balance: {gold, ton, usdt}, referrer: str}
-    "tasks": [
-        {"id": 1, "title": "انضم لقناة المطور", "reward": {"gold": 1000}, "type": "telegram", "link": "https://t.me/khaledsaleman", "chat_id": "@khaledsaleman"},
-        {"id": 2, "title": "تابعنا على تويتر", "reward": {"gold": 500}, "type": "link", "link": "https://x.com/example"},
-        {"id": 3, "title": "مشاهدة فيديو تعليمي", "reward": {"usdt": 0.1}, "type": "link", "link": "https://youtube.com/example"}
-    ],
+    "tasks": [],
     "withdrawals": [], # list of {id, user_id, amount, status, timestamp}
     "admin_logs": [] # list of {action, admin_id, timestamp, details}
 }

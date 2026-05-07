@@ -120,15 +120,15 @@ def init_db():
     ]
     cursor.executemany('INSERT OR IGNORE INTO global_settings (key, value) VALUES (?, ?)', settings)
 
-    # Default tasks
-    default_tasks = [
-        ("انضم لقناة المطور", 1000, 0, 0, "telegram", "https://t.me/khaledsaleman", "@khaledsaleman"),
-        ("تابعنا على تويتر", 500, 0, 0, "link", "https://x.com/example", None),
-        ("مشاهدة فيديو تعليمي", 0, 0, 0.1, "link", "https://youtube.com/example", None)
-    ]
-    cursor.execute("SELECT COUNT(*) FROM tasks")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany('INSERT INTO tasks (title, reward_gold, reward_ton, reward_usdt, type, link, chat_id) VALUES (?, ?, ?, ?, ?, ?, ?)', default_tasks)
+    # Default tasks - REMOVED AS PER REQUIREMENTS
+    # default_tasks = [
+    #     ("انضم لقناة المطور", 1000, 0, 0, "telegram", "https://t.me/khaledsaleman", "@khaledsaleman"),
+    #     ("تابعنا على تويتر", 500, 0, 0, "link", "https://x.com/example", None),
+    #     ("مشاهدة فيديو تعليمي", 0, 0, 0.1, "link", "https://youtube.com/example", None)
+    # ]
+    # cursor.execute("SELECT COUNT(*) FROM tasks")
+    # if cursor.fetchone()[0] == 0:
+    #     cursor.executemany('INSERT INTO tasks (title, reward_gold, reward_ton, reward_usdt, type, link, chat_id) VALUES (?, ?, ?, ?, ?, ?, ?)', default_tasks)
 
     conn.commit()
     conn.close()
