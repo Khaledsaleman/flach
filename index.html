@@ -242,8 +242,8 @@
                 <div class="glass rounded-xl p-3 mb-3 glow-gold">
                     <div class="flex items-center justify-between mb-2"><h2 class="font-orbitron text-amber-400 text-sm">المهام اليومية</h2><span class="text-[10px] text-gray-400" id="questReset">إعادة التعيين: 8س</span></div>
                     <div class="space-y-1.5">
-                        <div class="flex items-center justify-between p-1.5 bg-white/5 rounded-lg"><div class="flex items-center gap-1.5"><span class="text-base">⚔️</span><span class="text-sm">فوز في 3 معارك</span></div><span class="text-[10px] text-amber-400">2/3</span></div>
-                        <div class="flex items-center justify-between p-1.5 bg-white/5 rounded-lg"><div class="flex items-center gap-1.5"><span class="text-base">💰</span><span class="text-sm">جمع 1000 ذهب</span></div><span class="text-[10px] text-amber-400">750/1000</span></div>
+                        <div class="flex items-center justify-between p-1.5 bg-white/5 rounded-lg"><div class="flex items-center gap-1.5"><div id="taskSwordAnim" class="w-6 h-6"></div><span class="text-sm">فوز في 3 معارك</span></div><span class="text-[10px] text-amber-400">2/3</span></div>
+                        <div class="flex items-center justify-between p-1.5 bg-white/5 rounded-lg"><div class="flex items-center gap-1.5"><div id="taskMoneyAnim" class="w-6 h-6"></div><span class="text-sm">جمع 1000 ذهب</span></div><span class="text-[10px] text-amber-400">750/1000</span></div>
                     </div>
                     <button onclick="claimDailyReward()" class="mt-2 w-full btn-primary py-2 rounded-lg text-sm font-medium text-black">مكافأة يومية</button>
                 </div>
@@ -1606,6 +1606,22 @@
             loop: true,
             autoplay: true,
             path: 'IMOJ/TgSticker_fad810fe.json'
+        });
+
+        // Initialize Daily Tasks Animated Emojis
+        lottie.loadAnimation({
+            container: document.getElementById('taskSwordAnim'),
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            path: 'IMOJ/TgSticker_8c61c638.json'
+        });
+        lottie.loadAnimation({
+            container: document.getElementById('taskMoneyAnim'),
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            path: 'IMOJ/TgSticker_28d74c0b.json'
         });
 
         // Initialize Base Button Animated Emoji
