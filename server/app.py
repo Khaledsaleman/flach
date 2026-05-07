@@ -355,6 +355,49 @@ def manage_tasks():
     conn.close()
     return jsonify({"status": "ok", "message": f"Task {action}ed", "tasks": tasks})
 
+@app.route('/support/data', methods=['GET'])
+def get_support_data():
+    conn = get_db_connection()
+    faqs = conn.execute('SELECT * FROM support_faqs').fetchall()
+    agents = conn.execute('SELECT * FROM support_agents').fetchall()
+    conn.close()
+    return jsonify({
+        "faqs": [dict(f) for f in faqs],
+        "agents": [dict(a) for a in agents]
+    })
+
+@app.route('/admin/support/faqs', methods=['POST'])
+def manage_faqs():
+    data = request.json
+    if not is_admin_request(data):
+        return jsonify({"status": "error", "error": "Unauthorized"}), 403
+
+    action = data.get('action')
+    conn = get_db_connection()
+    if action == "add":
+        conn.execute('INSERT INTO support_faqs (question, answer) VALUES (?, ?)', (data['question'], data['answer']))
+    elif action == "delete":
+        conn.execute('DELETE FROM support_faqs WHERE id = ?', (data['id'],))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "ok"})
+
+@app.route('/admin/support/agents', methods=['POST'])
+def manage_agents():
+    data = request.json
+    if not is_admin_request(data):
+        return jsonify({"status": "error", "error": "Unauthorized"}), 403
+
+    action = data.get('action')
+    conn = get_db_connection()
+    if action == "add":
+        conn.execute('INSERT INTO support_agents (name, username, photo) VALUES (?, ?, ?)', (data['name'], data['username'], data.get('photo', '')))
+    elif action == "delete":
+        conn.execute('DELETE FROM support_agents WHERE id = ?', (data['id'],))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "ok"})
+
 @app.route('/admin/withdrawals', methods=['POST'])
 def manage_withdrawals():
     data = request.json
