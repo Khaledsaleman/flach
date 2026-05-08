@@ -7,6 +7,10 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <script src="js/buildings_data.js"></script>
+    <script src="js/base_scene.js"></script>
+    <script src="js/attack_scene.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Orbitron:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { font-family: 'Cairo', sans-serif; box-sizing: border-box; margin:0; padding:0; -webkit-tap-highlight-color: transparent; }
@@ -271,15 +275,7 @@
 
         <!-- Base Tab -->
         <div id="baseTab" class="tab-content">
-            <div id="mapContainer">
-                <div id="mapWorld">
-                    <!-- الصورة الأصلية كما هي تماماً بدون أي تعديل -->
-                    <img id="mapBg" src="map_bg.png" alt="Base Map">
-                    <canvas id="gridCanvas"></canvas>
-                    <div id="buildingsLayer"></div>
-                    <div id="buildGhost"></div>
-                </div>
-            </div>
+            <div id="phaserContainer" style="width:100%; height:100%;"></div>
             <div class="zoom-controls">
                 <button class="zoom-btn" onclick="zoomMap(1.25)">+</button>
                 <button class="zoom-btn" onclick="zoomMap(0.8)">−</button>
@@ -292,9 +288,7 @@
 
         <!-- Attack Tab -->
         <div id="attackTab" class="tab-content">
-            <div class="scroll-content p-3">
-                <div class="glass rounded-xl p-4 mb-4"><div class="text-center mb-4"><p class="text-sm text-gray-400 mb-3">ابحث عن خصم</p><button onclick="findOpponent()" class="btn-danger px-8 py-3 rounded-lg font-medium text-white">بحث عن مباراة</button></div><div id="opponentCard" class="hidden"><div class="flex items-center gap-3 mb-4 p-3 bg-white/5 rounded-lg"><div class="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center text-xl">🐉</div><div class="flex-1"><div class="font-medium text-white" id="opponentName">dragonSlayer</div></div></div><div class="flex gap-3"><button onclick="attackOpponent()" class="flex-1 btn-danger py-3 rounded-lg font-medium text-white">هجوم سريع</button></div></div></div>
-            </div>
+            <div id="phaserAttackContainer" style="width:100%; height:100%;"></div>
         </div>
 
         <!-- Leaderboard Tab -->
@@ -1024,6 +1018,10 @@
                 }
                 if (status.user.buildings) {
                     buildings = status.user.buildings;
+                    if (phaserGame) {
+                        const scene = phaserGame.scene.getScene('BaseScene');
+                        if (scene) scene.loadBuildings();
+                    }
                 }
                 if (status.user.daily_tasks_progress) {
                     playerData.daily_tasks_progress = status.user.daily_tasks_progress;
@@ -1417,277 +1415,73 @@
     // Start polling every 10 seconds
     setInterval(pollForEvents, 10000);
 
-    // ========== MAP SYSTEM ==========
-    const MW = 832, MH = 1248;
-    const COLS = 20, ROWS = 25;
-    const GS = MW / COLS;
-    const blockmap = [];
-
-    function initBlockmap() {
-        for (let r = 0; r < ROWS; r++) {
-            blockmap[r] = [];
-            for (let c = 0; c < COLS; c++) blockmap[r][c] = false;
-        }
-        // حواف محجوزة (أشجار على الأطراف)
-        for (let r = 0; r < ROWS; r++) {
-            for (let c = 0; c < 2; c++) blockmap[r][c] = true;
-            for (let c = COLS-2; c < COLS; c++) blockmap[r][c] = true;
-        }
-        for (let c = 0; c < COLS; c++) {
-            for (let r = 0; r < 3; r++) blockmap[r][c] = true;
-            for (let r = ROWS-3; r < ROWS; r++) blockmap[r][c] = true;
-        }
-        // نهر على اليسار
-        for (let r = 3; r <= 9; r++) { blockmap[r][2] = true; blockmap[r][3] = true; }
-        for (let r = 18; r <= 23; r++) { blockmap[r][2] = true; }
-        // صخور متفرقة
-        const rocks = [{r:5,c:5},{r:4,c:12},{r:6,c:15},{r:8,c:7},{r:10,c:10},{r:11,c:3},{r:12,c:16},{r:14,c:8},{r:15,c:13},{r:17,c:5},{r:18,c:11},{r:13,c:4},{r:7,c:11},{r:16,c:7},{r:10,c:14},{r:14,c:12},{r:20,c:9},{r:21,c:6},{r:21,c:14},{r:8,c:15},{r:11,c:6},{r:15,c:10},{r:9,c:17},{r:19,c:11},{r:12,c:9}];
-        rocks.forEach(r => { if(r.r>=0&&r.r<ROWS&&r.c>=0&&r.c<COLS) blockmap[r.r][r.c]=true; });
-    }
-
-    function drawGrid() {
-        const canvas = document.getElementById('gridCanvas');
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, MW, MH);
-        // خطوط الشبكة - شفافة لا تخفي الصورة
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.lineWidth = 1;
-        for (let x = 0; x <= MW; x += GS) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,MH); ctx.stroke(); }
-        for (let y = 0; y <= MH; y += GS) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(MW,y); ctx.stroke(); }
-        // ظل خفيف على الخلايا المحجوزة
-        for (let r = 0; r < ROWS; r++) {
-            for (let c = 0; c < COLS; c++) {
-                if (blockmap[r][c]) {
-                    ctx.fillStyle = 'rgba(0,0,0,0.1)';
-                    ctx.fillRect(c*GS+0.5, r*GS+0.5, GS-1, GS-1);
-                }
-            }
-        }
-    }
-
-    const BDEFS = {
-        townhall: {name:'قاعة البلدة',icon:'🏛️',w:80,h:80,color:'#6366f1',gold:10000,energy:50},
-        goldMine: {name:'منجم ذهب',icon:'⛏️',w:80,h:80,color:'#d97706',gold:5000,energy:20},
-        energyPlant: {name:'محطة طاقة',icon:'🔋',w:80,h:80,color:'#059669',gold:3000,energy:15},
-        cannon: {name:'مدفع',icon:'💣',w:80,h:80,color:'#dc2626',gold:4000,energy:25},
-        archerTower: {name:'برج رماة',icon:'🏹',w:80,h:80,color:'#991b1b',gold:3500,energy:20},
-        barracks: {name:'ثكنات',icon:'⚔️',w:80,h:80,color:'#2563eb',gold:6000,energy:30},
-        storage: {name:'مخزن',icon:'📦',w:80,h:80,color:'#7c3aed',gold:3500,energy:20},
-        wall: {name:'جدار',icon:'🧱',w:40,h:40,color:'#6b7280',gold:1500,energy:10}
-    };
-
+    // ========== PHASER MAP SYSTEM ==========
+    let phaserGame = null;
+    let phaserAttackGame = null;
+    let buildMode = false, selectedBuildType = null;
     let buildings = [];
 
-    let mapState = {x:0, y:0, zoom:1, dragging:false, sx:0, sy:0, smx:0, smy:0};
-    let buildMode = false, selectedBuildType = null;
-
-    let eventsSetup = false;
     function initBase() {
-        console.log("Initializing Base Map...");
-        if (!eventsSetup) {
-            initBlockmap();
-            setupBuildToolbar();
-            setupMapEvents();
-            eventsSetup = true;
-        }
+        if (phaserGame) return;
 
-        const container = document.getElementById('mapContainer');
         const centralArea = document.getElementById('centralArea');
-        const availW = centralArea.clientWidth || 400;
-        const availH = centralArea.clientHeight || 600;
-        console.log(`Available dimensions: ${availW}x${availH}`);
-
-        // Responsive Scaling for Mobile (2:3 Ratio)
-        let cw, ch;
-        const targetRatio = 2/3;
-        const currentRatio = availW / availH;
-
-        if (currentRatio > targetRatio) {
-            ch = availH - 10;
-            cw = ch * targetRatio;
-        } else {
-            cw = availW - 10;
-            ch = cw / targetRatio;
-            if (ch > availH - 10) {
-                ch = availH - 10;
-                cw = ch * targetRatio;
-            }
-        }
-
-        container.style.width = cw + 'px';
-        container.style.height = ch + 'px';
-
-        // Canvas يطابق حجم الصورة الأصلية
-        const gridCanvas = document.getElementById('gridCanvas');
-        gridCanvas.width = MW;
-        gridCanvas.height = MH;
-
-        const mapWorld = document.getElementById('mapWorld');
-        const mapBg = document.getElementById('mapBg');
-
-        mapWorld.style.width = MW + 'px';
-        mapWorld.style.height = MH + 'px';
-
-        console.log(`Map dimensions set to: ${MW}x${MH}`);
-        console.log(`Image source: ${mapBg.src}`);
-
-        mapBg.onload = () => console.log("Map image loaded successfully");
-        mapBg.onerror = () => console.error("Failed to load map image");
-
-        drawGrid();
-        renderBuildings();
-
-        mapState.zoom = Math.min(cw / MW, ch / MH) * 1.2; // Start slightly zoomed in
-        mapState.x = (cw - MW * mapState.zoom) / 2;
-        mapState.y = (ch - MH * mapState.zoom) / 2;
-        console.log(`Initial view: zoom=${mapState.zoom}, x=${mapState.x}, y=${mapState.y}`);
-        updateMapTransform();
+        const config = {
+            type: Phaser.AUTO,
+            parent: 'phaserContainer',
+            width: centralArea.clientWidth,
+            height: centralArea.clientHeight,
+            transparent: true,
+            scene: BaseScene
+        };
+        phaserGame = new Phaser.Game(config);
+        setupBuildToolbar();
     }
 
-    function renderBuildings() {
-        const layer = document.getElementById('buildingsLayer');
-        layer.innerHTML = '';
-        buildings.forEach(b => {
-            const def = BDEFS[b.type];
-            if (!def) return;
-            const el = document.createElement('div');
-            el.className = 'base-building';
-            el.style.left = (b.col * GS) + 'px';
-            el.style.top = (b.row * GS) + 'px';
-            el.style.width = (b.type === 'wall' ? GS : def.w) + 'px';
-            el.style.height = (b.type === 'wall' ? GS : def.h) + 'px';
-            el.style.background = `linear-gradient(145deg, ${def.color}, ${def.color}cc)`;
-            el.style.border = `2px solid ${def.color}`;
-            el.innerHTML = `<div class="lvl">${b.level}</div><div class="icon">${def.icon}</div><div class="bname">${def.name}</div>`;
-            el.onclick = (e) => { e.stopPropagation(); openUpgradePanel(b); };
-            layer.appendChild(el);
-        });
-    }
-
-    function updateMapTransform() {
-        document.getElementById('mapWorld').style.transform = `translate(${mapState.x}px, ${mapState.y}px) scale(${mapState.zoom})`;
-    }
-
-    function zoomMap(factor) {
-        const container = document.getElementById('mapContainer');
-        const cx = container.clientWidth / 2, cy = container.clientHeight / 2;
-        const oldZoom = mapState.zoom;
-        mapState.zoom = Math.max(0.4, Math.min(2.5, mapState.zoom * factor));
-        mapState.x = cx - (cx - mapState.x) * (mapState.zoom / oldZoom);
-        mapState.y = cy - (cy - mapState.y) * (mapState.zoom / oldZoom);
-        updateMapTransform();
-    }
-
-    function resetView() {
-        const container = document.getElementById('mapContainer');
-        mapState.zoom = Math.min(container.clientWidth / MW, container.clientHeight / MH) * 1.2;
-        mapState.x = (container.clientWidth - MW * mapState.zoom) / 2;
-        mapState.y = (container.clientHeight - MH * mapState.zoom) / 2;
-        updateMapTransform();
-    }
-
-    function setupMapEvents() {
-        const container = document.getElementById('mapContainer');
-        const ghost = document.getElementById('buildGhost');
-        const cellInfo = document.getElementById('cellInfo');
-
-        container.addEventListener('pointerdown', e => {
-            if (e.target.closest('.base-building') || e.target.closest('.zoom-btn') || e.target.closest('#toggleBuildBtn')) return;
-            if (buildMode && selectedBuildType) {
-                e.preventDefault();
-                updateGhost(e);
-            } else {
-                mapState.dragging = true;
-                mapState.sx = e.clientX; mapState.sy = e.clientY;
-                mapState.smx = mapState.x; mapState.smy = mapState.y;
-            }
-        });
-
-        function updateGhost(e) {
-            const rect = container.getBoundingClientRect();
-            const mx = (e.clientX - rect.left - mapState.x) / mapState.zoom;
-            const my = (e.clientY - rect.top - mapState.y) / mapState.zoom;
-            const col = Math.floor(mx / GS), row = Math.floor(my / GS);
-            const def = BDEFS[selectedBuildType];
-            const bCol = def.w / GS, bRow = def.h / GS;
-            if (col >= 0 && row >= 0 && col + bCol <= COLS && row + bRow <= ROWS) {
-                const valid = isAreaBuildable(col, row, bCol, bRow);
-                ghost.style.display = 'block';
-                ghost.style.left = (col*GS) + 'px';
-                ghost.style.top = (row*GS) + 'px';
-                ghost.style.width = (bCol*GS) + 'px';
-                ghost.style.height = (bRow*GS) + 'px';
-                ghost.style.borderColor = valid ? '#22c55e' : '#ef4444';
-                ghost.style.background = valid ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.25)';
-                cellInfo.textContent = valid ? '✅ خلية صالحة للبناء' : '❌ غير صالحة';
-                cellInfo.style.color = valid ? '#4ade80' : '#f87171';
-                cellInfo.classList.add('visible');
-            } else {
-                ghost.style.display = 'none';
-                cellInfo.classList.remove('visible');
-            }
-        }
-
-        container.addEventListener('pointermove', e => {
-            if (mapState.dragging) {
-                mapState.x = mapState.smx + (e.clientX - mapState.sx);
-                mapState.y = mapState.smy + (e.clientY - mapState.sy);
-                updateMapTransform();
-                return;
-            }
-            if (buildMode && selectedBuildType) {
-                updateGhost(e);
-            }
-        });
-
-        container.addEventListener('pointerup', e => {
-            mapState.dragging = false;
-            if (buildMode && selectedBuildType && ghost.style.display === 'block') {
-                const col = parseInt(ghost.style.left) / GS;
-                const row = parseInt(ghost.style.top) / GS;
-                const def = BDEFS[selectedBuildType];
-                const bCol = def.w / GS, bRow = def.h / GS;
-                if (isAreaBuildable(col, row, bCol, bRow)) {
-                    if (playerData.gold >= def.gold) {
-                        playerData.gold -= def.gold;
-                        buildings.push({id:'b'+Date.now(), type:selectedBuildType, col, row, level:1});
-                        renderBuildings(); updateUI();
-                        saveProgress();
-                        showToast('تم بناء ' + def.name + ' 🎉', 'success');
-                    } else { showToast('ذهب غير كافٍ!', 'error'); }
-                } else { showToast('لا يمكن البناء هنا', 'error'); }
-            }
-        });
-        container.addEventListener('contextmenu', e => e.preventDefault());
-    }
-
-    function isAreaBuildable(col, row, bCol, bRow) {
-        for (let r = 0; r < bRow; r++) {
-            for (let c = 0; c < bCol; c++) {
-                const cr = row+r, cc = col+c;
-                if (cr<0||cr>=ROWS||cc<0||cc>=COLS) return false;
-                if (blockmap[cr][cc]) return false;
-                for (const b of buildings) {
-                    const d = BDEFS[b.type];
-                    const bc = d.w/GS, br = d.h/GS;
-                    if (cc>=b.col&&cc<b.col+bc&&cr>=b.row&&cr<b.row+br) return false;
-                }
-            }
-        }
-        return true;
+    function initAttack() {
+        if (phaserAttackGame) return;
+        const centralArea = document.getElementById('centralArea');
+        const config = {
+            type: Phaser.AUTO,
+            parent: 'phaserAttackContainer',
+            width: centralArea.clientWidth,
+            height: centralArea.clientHeight,
+            transparent: true,
+            scene: AttackScene
+        };
+        phaserAttackGame = new Phaser.Game(config);
     }
 
     function setupBuildToolbar() {
         const tb = document.getElementById('buildToolbar');
         tb.innerHTML = '';
-        Object.keys(BDEFS).forEach(type => {
-            const def = BDEFS[type];
+        Object.keys(BUILDING_DATA).forEach(type => {
+            const def = BUILDING_DATA[type];
             const btn = document.createElement('div');
             btn.className = 'build-btn';
-            btn.innerHTML = `<span class="text-xl">${def.icon}</span><div class="price text-xs">${def.gold.toLocaleString()} ذ</div><div class="btype">${def.name}</div>`;
-            btn.onclick = (e) => { e.stopPropagation(); document.querySelectorAll('.build-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); selectedBuildType=type; };
+            btn.innerHTML = `<span class="text-xl">${def.icon}</span><div class="price text-xs">${def.cost.toLocaleString()} ذ</div><div class="btype">${def.name}</div>`;
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.build-btn').forEach(b=>b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedBuildType=type;
+            };
             tb.appendChild(btn);
         });
+    }
+
+    function zoomMap(factor) {
+        if (!phaserGame) return;
+        const scene = phaserGame.scene.getScene('BaseScene');
+        if (scene) scene.cameras.main.setZoom(Phaser.Math.Clamp(scene.cameras.main.zoom * factor, 0.4, 2));
+    }
+
+    function resetView() {
+        if (!phaserGame) return;
+        const scene = phaserGame.scene.getScene('BaseScene');
+        if (scene) {
+            scene.cameras.main.setZoom(0.8);
+            scene.cameras.main.centerOn(scene.mapWidth / 2, scene.mapHeight / 2);
+        }
     }
 
     function toggleBuildMode() {
@@ -1697,20 +1491,22 @@
         btn.textContent = buildMode ? '❌ إلغاء' : '🔨 بناء جديد';
         btn.style.background = buildMode ? 'linear-gradient(to right,#ef4444,#b91c1c)' : 'linear-gradient(to right,#22c55e,#15803d)';
         if (!buildMode) {
-            document.getElementById('buildGhost').style.display = 'none';
             document.querySelectorAll('.build-btn').forEach(b=>b.classList.remove('active'));
             selectedBuildType = null;
-            document.getElementById('cellInfo').classList.remove('visible');
+            if (phaserGame) {
+                const scene = phaserGame.scene.getScene('BaseScene');
+                if (scene && scene.ghost) scene.ghost.setVisible(false);
+            }
         }
     }
 
     function openUpgradePanel(b) {
-        const def = BDEFS[b.type];
+        const def = BUILDING_DATA[b.type];
         document.getElementById('upgradeTitle').textContent = 'ترقية ' + def.name;
         document.getElementById('upgradeIcon').textContent = def.icon;
         document.getElementById('upgradeCurrentLevel').textContent = b.level;
         document.getElementById('upgradeNextLevel').textContent = b.level + 1;
-        const gc = Math.round(def.gold*(1+b.level*0.5)), ec = Math.round(def.energy*(1+b.level*0.3));
+        const gc = Math.round(def.cost*(1+b.level*0.5)), ec = 20; // Simplified
         document.getElementById('upgradeGoldCost').textContent = gc.toLocaleString();
         document.getElementById('upgradeEnergyCost').textContent = ec;
         document.getElementById('upgradeModal').classList.remove('hidden');
@@ -1816,38 +1612,39 @@
     let originalAttackTabHTML = '';
     let attackDisabledAnim = null;
     function switchTab(name) {
-        if (!originalAttackTabHTML) {
-            originalAttackTabHTML = document.getElementById('attackTab').innerHTML;
-        }
-
-        // Attack status check
+        // Attack status check (Keeping the check but logic changed slightly for Phaser)
         if (name === 'attack') {
             const attackTab = document.getElementById('attackTab');
+            const phaserCont = document.getElementById('phaserAttackContainer');
+
             if (adminData && (adminData.settings.attack_enabled === false || adminData.settings.attack_enabled === '0')) {
-                if (attackDisabledAnim) {
-                    attackDisabledAnim.destroy();
-                    attackDisabledAnim = null;
-                }
-                attackTab.innerHTML = `
-                    <div class="h-full flex flex-col items-center justify-center p-10 text-center">
+                phaserCont.style.display = 'none';
+                if (!document.getElementById('attackSoonMsg')) {
+                    const msg = document.createElement('div');
+                    msg.id = 'attackSoonMsg';
+                    msg.className = "h-full flex flex-col items-center justify-center p-10 text-center";
+                    msg.innerHTML = `
                         <div id="attackDisabledEmojiAnim" class="w-32 h-32 mb-4 mx-auto"></div>
                         <h2 class="text-2xl font-bold text-amber-500 mb-2 font-orbitron">Soon...</h2>
                         <p class="text-gray-400 text-sm">نظام الهجوم قيد التطوير حالياً، انتظرونا قريباً!</p>
-                    </div>
-                `;
-                attackDisabledAnim = lottie.loadAnimation({
-                    container: document.getElementById('attackDisabledEmojiAnim'),
-                    renderer: 'svg',
-                    loop: true,
-                    autoplay: true,
-                    path: 'IMOJ/TgSticker_81d21d3f.json'
-                });
+                    `;
+                    attackTab.appendChild(msg);
+                    attackDisabledAnim = lottie.loadAnimation({
+                        container: document.getElementById('attackDisabledEmojiAnim'),
+                        renderer: 'svg',
+                        loop: true,
+                        autoplay: true,
+                        path: 'IMOJ/TgSticker_81d21d3f.json'
+                    });
+                }
             } else {
+                phaserCont.style.display = 'block';
+                const msg = document.getElementById('attackSoonMsg');
+                if (msg) msg.remove();
                 if (attackDisabledAnim) {
                     attackDisabledAnim.destroy();
                     attackDisabledAnim = null;
                 }
-                attackTab.innerHTML = originalAttackTabHTML;
             }
         }
 
@@ -1875,6 +1672,7 @@
         }
 
         if (name === 'base') setTimeout(() => { initBase(); }, 50);
+        if (name === 'attack') setTimeout(() => { initAttack(); }, 50);
         if (name === 'tasks') loadTasks();
         if (name === 'leaderboard') loadLeaderboard();
 

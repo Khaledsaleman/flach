@@ -486,6 +486,14 @@ def check_status():
             conn.execute('UPDATE users SET last_mining_time = ? WHERE id = ?', (current_time, user_id))
             conn.commit()
 
+    # Update buildings whose construction time has passed
+    conn.execute('''
+        UPDATE buildings
+        SET is_constructing = 0, finish_time = NULL
+        WHERE user_id = ? AND is_constructing = 1 AND finish_time <= ?
+    ''', (user_id, current_time))
+    conn.commit()
+
     # Get buildings
     buildings_rows = conn.execute('SELECT * FROM buildings WHERE user_id = ?', (user_id,)).fetchall()
     buildings_list = [dict(row) for row in buildings_rows]
@@ -955,13 +963,76 @@ def save_buildings():
         # Insert new buildings
         for b in buildings:
             conn.execute('''
-                INSERT INTO buildings (user_id, type, level, col, row)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (user_id, b['type'], b['level'], b['col'], b['row']))
+                INSERT INTO buildings (user_id, type, level, col, row, finish_time, is_constructing, health)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (user_id, b['type'], b['level'], b['col'], b['row'], b.get('finish_time'), b.get('is_constructing', 0), b.get('health')))
 
         conn.commit()
         conn.close()
         return jsonify({"status": "ok", "message": "Game progress saved"})
+    except Exception as e:
+        conn.close()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+@app.route('/buildings/start-build', methods=['POST'])
+def start_build():
+    data = request.json
+    user_id = str(data.get('user_id'))
+    b_type = data.get('type')
+    col = data.get('col')
+    row = data.get('row')
+    cost = data.get('cost', 0)
+    build_time_sec = data.get('buildTime', 0)
+
+    conn = get_db_connection()
+    user = conn.execute('SELECT gold FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not user or user['gold'] < cost:
+        conn.close()
+        return jsonify({"status": "error", "error": "Insufficient gold"}), 400
+
+    finish_time = None
+    is_constructing = 0
+    if build_time_sec > 0:
+        finish_time = datetime.fromtimestamp(time.time() + build_time_sec, UTC).isoformat()
+        is_constructing = 1
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO buildings (user_id, type, level, col, row, finish_time, is_constructing)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, b_type, 1, col, row, finish_time, is_constructing))
+
+        conn.execute('UPDATE users SET gold = gold - ? WHERE id = ?', (cost, user_id))
+        conn.commit()
+        new_id = cursor.lastrowid
+        conn.close()
+        return jsonify({"status": "ok", "building_id": new_id, "finish_time": finish_time})
+    except Exception as e:
+        conn.close()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+@app.route('/buildings/complete-instant', methods=['POST'])
+def complete_instant():
+    data = request.json
+    user_id = str(data.get('user_id'))
+    building_id = data.get('building_id')
+    cost = data.get('cost', 0)
+
+    conn = get_db_connection()
+    user = conn.execute('SELECT gold FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not user or user['gold'] < cost:
+        conn.close()
+        return jsonify({"status": "error", "error": "Insufficient gold"}), 400
+
+    try:
+        conn.execute('''
+            UPDATE buildings SET is_constructing = 0, finish_time = NULL WHERE id = ? AND user_id = ?
+        ''', (building_id, user_id))
+        conn.execute('UPDATE users SET gold = gold - ? WHERE id = ?', (cost, user_id))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "ok"})
     except Exception as e:
         conn.close()
         return jsonify({"status": "error", "error": str(e)}), 500
