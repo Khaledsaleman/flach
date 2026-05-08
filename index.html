@@ -679,18 +679,18 @@
 <div id="toastContainer" class="fixed top-4 left-4 right-4 max-w-md mx-auto z-50 space-y-2 pointer-events-none"></div>
 
 <script>
-    const tg = window.Telegram.WebApp;
+    window.tg = window.Telegram.WebApp;
     tg.ready(); tg.expand();
     tg.setHeaderColor('#0a0a1a'); tg.setBackgroundColor('#0a0a1a');
 
     // CONFIG: Backend URL
-    let BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === "")
+    window.BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === "")
         ? "http://localhost:5000"
         : "https://flach.onrender.com"; // Updated with user's Render URL
-    const ADMIN_ID = 2003253093;
-    let adminData = null;
+    window.ADMIN_ID = 2003253093;
+    window.adminData = null;
 
-    let playerData = { id:0, username: '', gold:0, energy:85, power:0, ton:0, usdt:0, rank:'برونزي III', dailyRewardClaimed:false, energyMax:100, daily_tasks_progress: {} };
+    window.playerData = { id:0, username: '', gold:0, energy:85, power:0, ton:0, usdt:0, rank:'برونزي III', dailyRewardClaimed:false, energyMax:100, daily_tasks_progress: {} };
 
     async function adminAction(endpoint, payload) {
         const user = tg.initDataUnsafe?.user;
@@ -1416,13 +1416,15 @@
     setInterval(pollForEvents, 10000);
 
     // ========== PHASER MAP SYSTEM ==========
-    let phaserGame = null;
-    let phaserAttackGame = null;
-    let buildMode = false, selectedBuildType = null;
-    let buildings = [];
+    window.phaserGame = null;
+    window.phaserAttackGame = null;
+    window.buildMode = false;
+    window.selectedBuildType = null;
+    window.buildings = [];
 
     function initBase() {
-        if (phaserGame) return;
+        const container = document.getElementById('phaserContainer');
+        if (window.phaserGame || !container) return;
 
         const centralArea = document.getElementById('centralArea');
         const config = {
@@ -1433,12 +1435,12 @@
             transparent: true,
             scene: BaseScene
         };
-        phaserGame = new Phaser.Game(config);
+        window.phaserGame = new Phaser.Game(config);
         setupBuildToolbar();
     }
 
     function initAttack() {
-        if (phaserAttackGame) return;
+        if (window.phaserAttackGame) return;
         const centralArea = document.getElementById('centralArea');
         const config = {
             type: Phaser.AUTO,
@@ -1454,8 +1456,8 @@
     function setupBuildToolbar() {
         const tb = document.getElementById('buildToolbar');
         tb.innerHTML = '';
-        Object.keys(BUILDING_DATA).forEach(type => {
-            const def = BUILDING_DATA[type];
+        Object.keys(window.BUILDING_DATA).forEach(type => {
+            const def = window.BUILDING_DATA[type];
             const btn = document.createElement('div');
             btn.className = 'build-btn';
             btn.innerHTML = `<span class="text-xl">${def.icon}</span><div class="price text-xs">${def.cost.toLocaleString()} ذ</div><div class="btype">${def.name}</div>`;
@@ -1463,7 +1465,7 @@
                 e.stopPropagation();
                 document.querySelectorAll('.build-btn').forEach(b=>b.classList.remove('active'));
                 btn.classList.add('active');
-                selectedBuildType=type;
+                window.selectedBuildType = type;
             };
             tb.appendChild(btn);
         });
@@ -1485,16 +1487,16 @@
     }
 
     function toggleBuildMode() {
-        buildMode = !buildMode;
-        document.getElementById('buildToolbar').classList.toggle('active', buildMode);
+        window.buildMode = !window.buildMode;
+        document.getElementById('buildToolbar').classList.toggle('active', window.buildMode);
         const btn = document.getElementById('toggleBuildBtn');
-        btn.textContent = buildMode ? '❌ إلغاء' : '🔨 بناء جديد';
-        btn.style.background = buildMode ? 'linear-gradient(to right,#ef4444,#b91c1c)' : 'linear-gradient(to right,#22c55e,#15803d)';
-        if (!buildMode) {
+        btn.textContent = window.buildMode ? '❌ إلغاء' : '🔨 بناء جديد';
+        btn.style.background = window.buildMode ? 'linear-gradient(to right,#ef4444,#b91c1c)' : 'linear-gradient(to right,#22c55e,#15803d)';
+        if (!window.buildMode) {
             document.querySelectorAll('.build-btn').forEach(b=>b.classList.remove('active'));
-            selectedBuildType = null;
-            if (phaserGame) {
-                const scene = phaserGame.scene.getScene('BaseScene');
+            window.selectedBuildType = null;
+            if (window.phaserGame) {
+                const scene = window.phaserGame.scene.getScene('BaseScene');
                 if (scene && scene.ghost) scene.ghost.setVisible(false);
             }
         }

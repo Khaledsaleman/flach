@@ -1,4 +1,4 @@
-const BUILDING_DATA = {
+window.BUILDING_DATA = {
     townhall: {
         name: 'قاعة المدينة',
         type: 'townhall',
