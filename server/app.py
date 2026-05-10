@@ -20,8 +20,37 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='..')
 CORS(app)
+
+@app.route('/')
+def serve_index():
+    return send_from_directory('..', 'index.html')
+
+@app.route('/tonconnect-manifest.json')
+def serve_manifest():
+    # Dynamic manifest to ensure 'url' matches the current host exactly
+    # This is critical for TON Connect security verification
+
+    # On Render, the host_url might be http, but we need https for the manifest url
+    # to match the origin if it's served over https.
+    if 'flach.onrender.com' in request.host:
+        origin = 'https://flach.onrender.com'
+    else:
+        origin = request.host_url.rstrip('/')
+
+    manifest = {
+        "url": origin,
+        "name": "CryptoClash",
+        "iconUrl": "https://ton.org/static/v1/favicon.ico",
+        "termsOfUseUrl": f"{origin}/terms.html",
+        "privacyPolicyUrl": f"{origin}/privacy.html"
+    }
+    return jsonify(manifest)
+
+@app.route('/<path:path>')
+def serve_static(path):
+    return send_from_directory('..', path)
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
