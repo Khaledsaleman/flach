@@ -26,7 +26,11 @@ CORS(app)
 
 @app.route('/')
 def serve_index():
-    return send_from_directory('..', 'index.html')
+    response = send_from_directory('..', 'index.html')
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/tonconnect-manifest.json')
 def serve_manifest():
@@ -106,6 +110,7 @@ def load_settings():
 load_settings()
 
 def verify_telegram_data(init_data):
+    print(f"DEBUG: verify_telegram_data called")
     """
     Verifies the data received from the Telegram Web App and returns the validated user object if successful.
     """
@@ -123,6 +128,7 @@ def verify_telegram_data(init_data):
         secret_key = hmac.new("WebAppData".encode(), BOT_TOKEN.encode(), hashlib.sha256).digest()
         h = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
+        print(f"DEBUG: Computed hash: {h}, Received: {vals.get('hash')}")
         if h == vals.get('hash'):
             # Return the user data
             if 'user' in vals:
@@ -1013,6 +1019,7 @@ def notify():
 
 @app.route('/wallet/update', methods=['POST'])
 def update_wallet():
+    print("DEBUG: /wallet/update called")
     data = request.json
     address = data.get('address')
     init_data = data.get('initData')
@@ -1033,6 +1040,7 @@ def update_wallet():
 
 @app.route('/withdraw/request', methods=['POST'])
 def request_withdrawal():
+    print("DEBUG: /withdraw/request called")
     data = request.json
     amount = float(data.get('amount', 0))
     currency = data.get('currency', 'ton').lower()

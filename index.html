@@ -784,7 +784,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    user_id: user.id,
+                    user_id: String(user.id),
                     initData: tg.initData,
                     ...payload
                 })
@@ -810,7 +810,7 @@
             const response = await fetch(`${BACKEND_URL}/admin/data`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.id, initData: tg.initData })
+                body: JSON.stringify({ user_id: String(user.id), initData: tg.initData })
             });
             adminData = await response.json();
             updateAdminUI();
@@ -927,7 +927,7 @@
             const res = await fetch(`${BACKEND_URL}/admin/withdrawals/list`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.id, initData: tg.initData })
+                body: JSON.stringify({ user_id: String(user.id), initData: tg.initData })
             });
             const data = await res.json();
             if (data.status === 'ok') {
@@ -1000,7 +1000,7 @@
             const res = await fetch(`${BACKEND_URL}/admin/withdrawals/action`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.id, initData: tg.initData, id, action, reason })
+                body: JSON.stringify({ user_id: String(user.id), initData: tg.initData, id, action, reason })
             });
             const data = await res.json();
             if (data.status === 'ok') {
@@ -1077,7 +1077,7 @@
         const res = await fetch(`${BACKEND_URL}/admin/users/search`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: user.id, query: query })
+            body: JSON.stringify({ user_id: String(user.id), query: query })
         });
         const data = await res.json();
         const resultDiv = document.getElementById('adminSearchResult');
@@ -1162,7 +1162,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    user_id: user.id,
+                    user_id: String(user.id),
                     initData: tg.initData,
                     tg_username: user.username || '',
                     username: user.first_name + (user.last_name ? ' ' + user.last_name : ''),
@@ -1203,6 +1203,8 @@
                 if (status.user.rank) {
                     playerData.rank = status.user.rank;
                 }
+                // Always update wallet address from backend, even if it becomes null
+                playerData.wallet_address = status.user.wallet_address || null;
                 if (status.user.buildings) {
                     buildings = status.user.buildings;
                     if (phaserGame) {
@@ -1279,7 +1281,7 @@
             const response = await fetch(`${BACKEND_URL}/daily-task/claim`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.id, initData: tg.initData })
+                body: JSON.stringify({ user_id: String(user.id), initData: tg.initData })
             });
             const data = await response.json();
             if (data.status === 'ok') {
@@ -1359,7 +1361,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    user_id: user.id,
+                    user_id: String(user.id),
                     buildings: buildings,
                     balance: { gold: playerData.gold, ton: playerData.ton, usdt: playerData.usdt },
                     energy: playerData.energy,
@@ -1381,7 +1383,7 @@
             const response = await fetch(`${BACKEND_URL}/tasks/verify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.id, task_id: taskId, initData: tg.initData })
+                body: JSON.stringify({ user_id: String(user.id), task_id: taskId, initData: tg.initData })
             });
             const data = await response.json();
             if (data.status === 'ok') {
@@ -1978,7 +1980,7 @@
             const response = await fetch(`${BACKEND_URL}/referrals/claim-rewards`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.id, initData: tg.initData })
+                body: JSON.stringify({ user_id: String(user.id), initData: tg.initData })
             });
             const data = await response.json();
             if (data.status === 'ok') {
@@ -2000,7 +2002,7 @@
             const response = await fetch(`${BACKEND_URL}/daily-reward/claim`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.id, initData: tg.initData })
+                body: JSON.stringify({ user_id: String(user.id), initData: tg.initData })
             });
             const data = await response.json();
             if (data.status === 'ok') {
@@ -2022,7 +2024,7 @@
             const response = await fetch(`${BACKEND_URL}/attack/perform`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.id, initData: tg.initData })
+                body: JSON.stringify({ user_id: String(user.id), initData: tg.initData })
             });
             const data = await response.json();
 
@@ -2083,13 +2085,27 @@
             });
 
             tonConnector.onStatusChange(wallet => {
+                console.log("TonConnect Status Change:", wallet ? "Connected" : "Disconnected");
                 if (wallet) {
                     const rawAddr = wallet.account.address;
-                    if (playerData.wallet_address !== rawAddr) {
-                        updateWalletBackend(rawAddr);
+                    let friendlyAddr = rawAddr;
+                    try {
+                        // Try static method first then instance method
+                        if (typeof TonConnectUI !== 'undefined' && TonConnectUI.toUserFriendlyAddress) {
+                            friendlyAddr = TonConnectUI.toUserFriendlyAddress(rawAddr);
+                        } else if (tonConnector && tonConnector.toUserFriendlyAddress) {
+                            friendlyAddr = tonConnector.toUserFriendlyAddress(rawAddr);
+                        }
+                    } catch (e) { console.error("Address conversion failed:", e); }
+
+                    console.log("Raw Addr:", rawAddr, "Friendly:", friendlyAddr);
+
+                    if (playerData.wallet_address !== friendlyAddr) {
+                        updateWalletBackend(friendlyAddr);
                     }
                 } else {
                     if (playerData.wallet_address) {
+                        console.log("Wallet disconnected, clearing from backend.");
                         playerData.wallet_address = null;
                         updateWalletBackend(null);
                         showToast("تم فصل المحفظة", "info");
@@ -2110,7 +2126,7 @@
             const response = await fetch(`${BACKEND_URL}/wallet/update`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.id, address: address, initData: tg.initData })
+                body: JSON.stringify({ user_id: String(user.id), address: address, initData: tg.initData })
             });
             const data = await response.json();
             if (data.status === 'ok') {
@@ -2129,11 +2145,13 @@
     }
 
     function updateWalletUI() {
-        document.getElementById('walletTonBalance').textContent = playerData.ton.toFixed(2);
-        document.getElementById('walletUsdtBalance').textContent = playerData.usdt.toFixed(2);
-        document.getElementById('walletGoldBalance').textContent = Math.floor(playerData.gold).toLocaleString();
+        if (!document.getElementById('walletTonBalance')) return; // Safety check
 
-        const inUsdt = (playerData.ton * tonPrice).toFixed(2);
+        document.getElementById('walletTonBalance').textContent = (playerData.ton || 0).toFixed(2);
+        document.getElementById('walletUsdtBalance').textContent = (playerData.usdt || 0).toFixed(2);
+        document.getElementById('walletGoldBalance').textContent = Math.floor(playerData.gold || 0).toLocaleString();
+
+        const inUsdt = ((playerData.ton || 0) * (tonPrice || 0)).toFixed(2);
         document.getElementById('walletTonInUsdt').textContent = `≈ $${inUsdt} USDT`;
 
         const info = document.getElementById('walletInfo');
@@ -2142,7 +2160,18 @@
             info.classList.remove('hidden');
             btn.classList.add('hidden');
             const addr = playerData.wallet_address;
-            document.getElementById('connectedAddress').textContent = addr.substring(0,6) + '...' + addr.substring(addr.length-4);
+            let displayAddr = addr;
+            try {
+                if (addr.includes(':')) {
+                    if (typeof TonConnectUI !== 'undefined' && TonConnectUI.toUserFriendlyAddress) {
+                        displayAddr = TonConnectUI.toUserFriendlyAddress(addr);
+                    } else if (tonConnector && tonConnector.toUserFriendlyAddress) {
+                        displayAddr = tonConnector.toUserFriendlyAddress(addr);
+                    }
+                }
+            } catch(e){ console.error("UI Address conversion failed:", e); }
+
+            document.getElementById('connectedAddress').textContent = displayAddr.substring(0,6) + '...' + displayAddr.substring(displayAddr.length-4);
         } else {
             info.classList.add('hidden');
             btn.classList.remove('hidden');
@@ -2171,7 +2200,7 @@
             const res = await fetch(`${BACKEND_URL}/withdraw/request`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.id, amount, currency, initData: tg.initData })
+                body: JSON.stringify({ user_id: String(user.id), amount, currency, initData: tg.initData })
             });
             const data = await res.json();
             if (data.status === 'ok') {
@@ -2353,7 +2382,7 @@
         const res = await fetch(`${BACKEND_URL}/admin/support/${type}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: user.id, initData: tg.initData, ...payload })
+            body: JSON.stringify({ user_id: String(user.id), initData: tg.initData, ...payload })
         });
         const data = await res.json();
         if (data.status === 'ok') {
