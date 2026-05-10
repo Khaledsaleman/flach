@@ -602,7 +602,6 @@ def claim_daily_reward():
         return jsonify({"status": "error", "error": "User not found"}), 404
 
     now = datetime.now(timezone.utc)
-    now = datetime.now(timezone.utc)
     last_claim = user['last_daily_reward_time']
 
     if last_claim:
