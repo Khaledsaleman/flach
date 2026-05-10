@@ -1,6 +1,6 @@
 import sqlite3
 import os
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 
 DB_PATH = 'server/database.db'
 
@@ -24,7 +24,10 @@ def init_db():
         last_mining_time TEXT,
         last_daily_reward TEXT,
         referrer TEXT,
-        banned INTEGER DEFAULT 0
+        banned INTEGER DEFAULT 0,
+        wallet_address TEXT,
+        daily_tasks_progress TEXT,
+        referral_rewards_balance TEXT
     )
     ''')
 
@@ -73,7 +76,9 @@ def init_db():
         user_id TEXT,
         amount REAL,
         currency TEXT,
+        address TEXT,
         status TEXT DEFAULT 'pending',
+        rejection_reason TEXT,
         timestamp TEXT,
         FOREIGN KEY (user_id) REFERENCES users (id)
     )

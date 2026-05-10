@@ -5,7 +5,7 @@ import json
 import uuid
 import sqlite3
 import time
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
@@ -108,7 +108,7 @@ def log_admin_action(action, details):
     game_state["admin_logs"].append({
         "action": action,
         "admin_id": ADMIN_ID,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "details": details
     })
 
@@ -398,26 +398,75 @@ def manage_agents():
     conn.close()
     return jsonify({"status": "ok"})
 
-@app.route('/admin/withdrawals', methods=['POST'])
+@app.route('/admin/withdrawals/list', methods=['POST'])
+def list_withdrawals_admin():
+    data = request.json
+    if not is_admin_request(data):
+        return jsonify({"status": "error", "error": "Unauthorized"}), 403
+
+    conn = get_db_connection()
+    rows = conn.execute('''
+        SELECT w.*, u.name, u.photo, u.username
+        FROM withdrawals w
+        JOIN users u ON w.user_id = u.id
+        ORDER BY w.timestamp DESC
+    ''').fetchall()
+    conn.close()
+
+    withdrawals = [dict(r) for r in rows]
+    return jsonify({"status": "ok", "withdrawals": withdrawals})
+
+@app.route('/admin/withdrawals/action', methods=['POST'])
 def manage_withdrawals():
     data = request.json
     if not is_admin_request(data):
         return jsonify({"status": "error", "error": "Unauthorized"}), 403
 
-    action = data.get('action') # approve, reject
+    action = data.get('action') # confirm, reject, refund
     withdraw_id = data.get('id')
+    reason = data.get('reason', '')
 
-    found = False
-    for w in game_state["withdrawals"]:
-        if w["id"] == withdraw_id:
-            w["status"] = "approved" if action == "approve" else "rejected"
-            log_admin_action(f"{action}_withdrawal", {"id": withdraw_id})
-            found = True
-            break
+    conn = get_db_connection()
+    withdrawal = conn.execute('SELECT * FROM withdrawals WHERE id = ?', (withdraw_id,)).fetchone()
 
-    if found:
-        return jsonify({"status": "ok", "message": f"Withdrawal {action}d", "withdrawals": game_state["withdrawals"]})
-    return jsonify({"status": "error", "error": "Withdrawal not found"}), 404
+    if not withdrawal:
+        conn.close()
+        return jsonify({"status": "error", "error": "طلب السحب غير موجود"}), 404
+
+    user_id = withdrawal['user_id']
+    amount = withdrawal['amount']
+    currency = withdrawal['currency']
+
+    if action == 'confirm':
+        conn.execute('UPDATE withdrawals SET status = "paid" WHERE id = ?', (withdraw_id,))
+        conn.commit()
+        # Notify user
+        notify_msg = f"✅ تم تنفيذ طلب السحب الخاص بك بنجاح!\nالمبلغ: {amount} {currency.upper()}"
+        requests.post(f"{TELEGRAM_API_URL}/sendMessage", json={"chat_id": user_id, "text": notify_msg})
+
+    elif action == 'reject':
+        conn.execute('UPDATE withdrawals SET status = "rejected", rejection_reason = ? WHERE id = ?', (reason, withdraw_id))
+        conn.commit()
+        # Notify user
+        notify_msg = f"❌ تم رفض طلب السحب الخاص بك.\nالسبب: {reason}"
+        requests.post(f"{TELEGRAM_API_URL}/sendMessage", json={"chat_id": user_id, "text": notify_msg})
+
+    elif action == 'refund':
+        # Return money to user
+        if currency == 'ton':
+            conn.execute('UPDATE users SET ton = ton + ? WHERE id = ?', (amount, user_id))
+        else:
+            conn.execute('UPDATE users SET usdt = usdt + ? WHERE id = ?', (amount, user_id))
+
+        conn.execute('UPDATE withdrawals SET status = "refunded" WHERE id = ?', (withdraw_id,))
+        conn.commit()
+        # Notify user
+        notify_msg = f"🔄 تم إرجاع مبلغ السحب إلى رصيدك.\nالمبلغ: {amount} {currency.upper()}"
+        requests.post(f"{TELEGRAM_API_URL}/sendMessage", json={"chat_id": user_id, "text": notify_msg})
+
+    conn.close()
+    log_admin_action(f"{action}_withdrawal", {"id": withdraw_id, "reason": reason})
+    return jsonify({"status": "ok", "message": f"تمت العملية بنجاح"})
 
 @app.route('/check-status', methods=['POST'])
 def check_status():
@@ -434,7 +483,7 @@ def check_status():
     conn = get_db_connection()
     user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
 
-    current_time = datetime.now(UTC).isoformat()
+    current_time = datetime.now(timezone.utc).isoformat()
 
     if not user:
         # If no explicit referrer, check if it's already in the DB (prevents double referral)
@@ -504,6 +553,7 @@ def check_status():
     user_data['energy'] = user['energy']
     user_data['power'] = user['power']
     user_data['rank'] = user['rank']
+    user_data['wallet_address'] = user['wallet_address']
     user_data['buildings'] = buildings_list
 
     # Progress for daily tasks
@@ -551,7 +601,8 @@ def claim_daily_reward():
         conn.close()
         return jsonify({"status": "error", "error": "User not found"}), 404
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
     last_claim = user['last_daily_reward_time']
 
     if last_claim:
@@ -653,11 +704,11 @@ def perform_attack():
 
     # Daily task progress
     try:
-        progress = json.loads(user['daily_tasks_progress']) if user['daily_tasks_progress'] else {"wins": 0, "claimed": False, "date": datetime.now(UTC).date().isoformat()}
+        progress = json.loads(user['daily_tasks_progress']) if user['daily_tasks_progress'] else {"wins": 0, "claimed": False, "date": datetime.now(timezone.utc).date().isoformat()}
     except:
-        progress = {"wins": 0, "claimed": False, "date": datetime.now(UTC).date().isoformat()}
+        progress = {"wins": 0, "claimed": False, "date": datetime.now(timezone.utc).date().isoformat()}
 
-    today = datetime.now(UTC).date().isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
     if progress.get("date") != today:
         progress = {"wins": 1 if win else 0, "claimed": False, "date": today}
     elif win:
@@ -764,7 +815,7 @@ def list_referrals():
         total_count = total_count_row[0] if total_count_row else 0
 
         # Get detailed list
-        rows = conn.execute('SELECT * FROM users WHERE referrer = ?', (user_id,)).fetchall()
+        rows = conn.execute('SELECT id, username, name, photo, gold, ton, usdt, power, wallet_address FROM users WHERE referrer = ?', (user_id,)).fetchall()
         referrals = []
         for row in rows:
             referrals.append({
@@ -888,6 +939,81 @@ def notify():
     response = requests.post(url, json=payload)
     return jsonify(response.json()), response.status_code
 
+@app.route('/wallet/update', methods=['POST'])
+def update_wallet():
+    data = request.json
+    user_id = str(data.get('user_id'))
+    address = data.get('address')
+    init_data = data.get('initData')
+
+    if not verify_telegram_data(init_data):
+        return jsonify({"status": "error", "error": "Unauthorized"}), 401
+
+    if not user_id or not address:
+        return jsonify({"status": "error", "error": "بيانات ناقصة"}), 400
+
+    conn = get_db_connection()
+    conn.execute('UPDATE users SET wallet_address = ? WHERE id = ?', (address, user_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "ok", "message": "تم تحديث المحفظة بنجاح"})
+
+@app.route('/withdraw/request', methods=['POST'])
+def request_withdrawal():
+    data = request.json
+    user_id = str(data.get('user_id'))
+    amount = float(data.get('amount', 0))
+    currency = data.get('currency', 'ton').lower()
+    init_data = data.get('initData')
+
+    if not verify_telegram_data(init_data):
+        return jsonify({"status": "error", "error": "Unauthorized"}), 401
+
+    if amount <= 0:
+        return jsonify({"status": "error", "error": "المبلغ يجب أن يكون أكبر من صفر"}), 400
+
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+
+    if not user:
+        conn.close()
+        return jsonify({"status": "error", "error": "المستخدم غير موجود"}), 404
+
+    if not user['wallet_address']:
+        conn.close()
+        return jsonify({"status": "error", "error": "يرجى ربط محفظة TON أولاً"}), 400
+
+    # Check for pending withdrawals
+    pending = conn.execute('SELECT * FROM withdrawals WHERE user_id = ? AND status = "pending"', (user_id,)).fetchone()
+    if pending:
+        conn.close()
+        return jsonify({"status": "error", "error": "لديك طلب سحب قيد المعالجة حالياً"}), 400
+
+    # Check balance
+    if currency == 'ton':
+        if user['ton'] < amount:
+            conn.close()
+            return jsonify({"status": "error", "error": "رصيد TON غير كافٍ"}), 400
+        conn.execute('UPDATE users SET ton = ton - ? WHERE id = ?', (amount, user_id))
+    elif currency == 'usdt':
+        if user['usdt'] < amount:
+            conn.close()
+            return jsonify({"status": "error", "error": "رصيد USDT غير كافٍ"}), 400
+        conn.execute('UPDATE users SET usdt = usdt - ? WHERE id = ?', (amount, user_id))
+    else:
+        conn.close()
+        return jsonify({"status": "error", "error": "عملة غير مدعومة"}), 400
+
+    withdraw_id = str(uuid.uuid4())
+    conn.execute('''
+        INSERT INTO withdrawals (id, user_id, amount, currency, address, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (withdraw_id, user_id, amount, currency, user['wallet_address'], datetime.now(timezone.utc).isoformat()))
+
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "ok", "message": "تم إرسال طلب السحب بنجاح وسيتمت معالجته خلال 24 ساعة"})
+
 @app.route('/events', methods=['GET'])
 def get_events():
     user_id = request.args.get('user_id')
@@ -925,7 +1051,7 @@ def trigger_event():
         "id": str(uuid.uuid4()),
         "type": event_type,
         "payload": payload,
-        "timestamp": datetime.now(UTC).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     })
 
     return jsonify({"status": "Event queued", "event_count": len(pending_events[user_id])})
@@ -993,7 +1119,7 @@ def start_build():
     finish_time = None
     is_constructing = 0
     if build_time_sec > 0:
-        finish_time = datetime.fromtimestamp(time.time() + build_time_sec, UTC).isoformat()
+        finish_time = datetime.fromtimestamp(time.time() + build_time_sec, timezone.utc).isoformat()
         is_constructing = 1
 
     try:

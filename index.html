@@ -6,6 +6,7 @@
     <title>CryptoClash - لعبة الكريبتو</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@tonconnect/sdk@latest/dist/tonconnect-sdk.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
     <script src="js/buildings_data.js"></script>
@@ -546,6 +547,20 @@
                         </div>
                     </div>
 
+                    <!-- Withdrawal Requests -->
+                    <div class="glass p-4 rounded-xl border border-red-500/20">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="font-medium text-white flex items-center gap-2"><span class="text-red-400">💸</span> طلبات السحب</h2>
+                            <div class="relative w-40">
+                                <input type="text" id="adminWithdrawalSearch" placeholder="بحث..." oninput="filterAdminWithdrawals()" class="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white focus:outline-none focus:border-red-500/50">
+                                <span class="absolute left-2 top-1.5 opacity-30 text-[10px]">🔍</span>
+                            </div>
+                        </div>
+                        <div id="adminWithdrawalsList" class="space-y-3 max-h-80 overflow-y-auto scrollbar-hide">
+                            <p class="text-center text-[10px] opacity-50">جاري تحميل الطلبات...</p>
+                        </div>
+                    </div>
+
                     <!-- Logs -->
                     <div class="glass p-4 rounded-xl">
                         <h2 class="font-medium text-white mb-3 flex items-center gap-2"><span class="text-gray-400">📜</span> سجل النشاط</h2>
@@ -574,7 +589,75 @@
 <!-- Modals -->
 <div id="upgradeModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center"><div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5" style="animation:slideUp 0.3s ease"><div class="flex items-center justify-between mb-3"><h3 class="font-orbitron text-lg text-amber-400" id="upgradeTitle">ترقية</h3><button onclick="closeModal('upgradeModal')" class="p-2 rounded-lg hover:bg-white/10">✕</button></div><div class="space-y-3"><div class="flex items-center gap-4"><span class="text-4xl" id="upgradeIcon">⛏️</span><div><div class="text-sm text-gray-400">المستوى الحالي</div><div class="font-orbitron text-2xl text-white" id="upgradeCurrentLevel">5</div></div><div><div class="text-sm text-gray-400">المستوى التالي</div><div class="font-orbitron text-2xl text-amber-400" id="upgradeNextLevel">6</div></div></div><div class="p-3 bg-white/5 rounded-lg"><div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center text-xs">ذ</span><span class="font-orbitron text-amber-400" id="upgradeGoldCost">5,000</span></div><div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-xs">ط</span><span class="font-orbitron text-emerald-400" id="upgradeEnergyCost">20</span></div></div></div><button onclick="performUpgrade()" class="w-full btn-primary py-3 rounded-lg font-medium text-black">ترقية الآن</button></div></div></div>
 
-<div id="walletModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center"><div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5" style="animation:slideUp 0.3s ease"><div class="flex items-center justify-between mb-3"><h3 class="font-orbitron text-lg text-amber-400">💰 المحفظة</h3><button onclick="closeModal('walletModal')" class="p-2 rounded-lg hover:bg-white/10">✕</button></div><div class="space-y-3"><div class="p-3 bg-white/5 rounded-lg"><div class="text-sm text-gray-400">محفظة TON</div><div class="font-orbitron text-sm text-blue-400">24.5 TON</div></div><div class="p-3 bg-white/5 rounded-lg"><div class="text-sm text-gray-400">محفظة USDT</div><div class="font-orbitron text-sm text-green-400">150 USDT</div></div></div></div></div>
+<div id="walletModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center">
+    <div class="bg-[#0f0f1e] w-full sm:w-[400px] rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl border border-white/10 overflow-hidden" style="animation:slideUp 0.3s ease">
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">💰</span>
+                <h3 class="font-orbitron text-xl text-white">المحفظة الذكية</h3>
+            </div>
+            <button onclick="closeModal('walletModal')" class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">✕</button>
+        </div>
+
+        <div class="space-y-4">
+            <!-- Balances Grid -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="glass p-4 rounded-2xl border border-blue-500/20 bg-blue-500/5">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-[10px] font-bold">T</span>
+                        <span class="text-[10px] text-blue-300">TON Balance</span>
+                    </div>
+                    <div class="font-orbitron text-lg text-white" id="walletTonBalance">0.00</div>
+                    <div class="text-[9px] text-gray-400 mt-1" id="walletTonInUsdt">≈ $0.00 USDT</div>
+                </div>
+                <div class="glass p-4 rounded-2xl border border-green-500/20 bg-green-500/5">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-[10px] font-bold">U</span>
+                        <span class="text-[10px] text-green-300">USDT Balance</span>
+                    </div>
+                    <div class="font-orbitron text-lg text-white" id="walletUsdtBalance">0.00</div>
+                </div>
+            </div>
+
+            <div class="glass p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center text-[10px] font-bold text-black">ذ</span>
+                    <span class="text-[10px] text-amber-300">Gold Balance</span>
+                </div>
+                <div class="font-orbitron text-lg text-white" id="walletGoldBalance">0</div>
+            </div>
+
+            <!-- TON Connect Section -->
+            <div id="tonConnectSection" class="p-4 bg-white/5 rounded-2xl border border-white/10">
+                <div id="tonConnectBtn" class="flex justify-center">
+                    <!-- TonConnect Button will be injected here -->
+                </div>
+                <div id="walletInfo" class="hidden">
+                    <div class="text-[10px] text-gray-400 mb-1">المحفظة المرتبطة:</div>
+                    <div class="flex items-center justify-between bg-black/40 p-2.5 rounded-xl border border-white/5">
+                        <span id="connectedAddress" class="text-[10px] font-mono text-blue-400 truncate flex-1 mr-2">addr...</span>
+                        <button onclick="tonConnector.disconnect()" class="text-[9px] text-red-400 font-bold hover:underline">فصل</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Withdraw Section -->
+            <div class="space-y-3 pt-2">
+                <div class="flex gap-2">
+                    <select id="withdrawCurrency" class="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50">
+                        <option value="ton">TON</option>
+                        <option value="usdt">USDT</option>
+                    </select>
+                    <input type="number" id="withdrawAmount" placeholder="الكمية" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50">
+                </div>
+                <button onclick="requestWithdrawal()" class="w-full btn-primary py-3.5 rounded-2xl font-bold text-black shadow-lg glow-gold transition-all active:scale-95">
+                    🚀 طلب سحب (Withdraw)
+                </button>
+                <p class="text-[10px] text-center text-gray-500 italic">"عمليات السحب تتم خلال 24 ساعة"</p>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div id="settingsModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-end sm:items-center justify-center"><div class="bg-gray-900 w-full sm:w-96 rounded-t-2xl sm:rounded-2xl p-5" style="animation:slideUp 0.3s ease"><div class="flex items-center justify-between mb-3"><h3 class="font-orbitron text-lg text-gray-300">⚙️ الإعدادات</h3><button onclick="closeModal('settingsModal')" class="p-2 rounded-lg hover:bg-white/10">✕</button></div><div class="space-y-3"><div class="flex items-center justify-between p-3 bg-white/5 rounded-lg"><span>الإشعارات</span><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" checked><div class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div></label></div><button onclick="closeModal('settingsModal')" class="w-full btn-danger py-2 rounded-lg text-sm font-medium text-white">إغلاق</button></div></div></div>
 
@@ -690,7 +773,7 @@
     window.ADMIN_ID = 2003253093;
     window.adminData = null;
 
-    window.playerData = { id:0, username: '', gold:0, energy:85, power:0, ton:0, usdt:0, rank:'برونزي III', dailyRewardClaimed:false, energyMax:100, daily_tasks_progress: {} };
+    window.playerData = { id:0, username: '', gold:0, energy:85, power:0, ton:0, usdt:0, rank:'برونزي III', dailyRewardClaimed:false, energyMax:100, daily_tasks_progress: {}, wallet_address: null };
 
     async function adminAction(endpoint, payload) {
         const user = tg.initDataUnsafe?.user;
@@ -829,6 +912,109 @@
         const smartSupportToggle = document.getElementById('adminSmartSupportToggle');
         if (smartSupportToggle) {
             smartSupportToggle.checked = adminData.settings.smart_support_enabled !== false;
+        }
+
+        loadAdminWithdrawals();
+    }
+
+    let currentAdminWithdrawals = [];
+    async function loadAdminWithdrawals() {
+        const user = tg.initDataUnsafe?.user;
+        const container = document.getElementById('adminWithdrawalsList');
+        if (!user || !container) return;
+
+        try {
+            const res = await fetch(`${BACKEND_URL}/admin/withdrawals/list`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id, initData: tg.initData })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                currentAdminWithdrawals = data.withdrawals;
+                filterAdminWithdrawals();
+            }
+        } catch (e) { console.error("Load withdrawals failed:", e); }
+    }
+
+    function filterAdminWithdrawals() {
+        const query = document.getElementById('adminWithdrawalSearch').value.toLowerCase();
+        const filtered = currentAdminWithdrawals.filter(w =>
+            w.name.toLowerCase().includes(query) ||
+            (w.username && w.username.toLowerCase().includes(query)) ||
+            w.user_id.toString().includes(query) ||
+            w.address.toLowerCase().includes(query)
+        );
+        renderAdminWithdrawals(filtered);
+    }
+
+    function renderAdminWithdrawals(list) {
+        const container = document.getElementById('adminWithdrawalsList');
+        if (!list || list.length === 0) {
+            container.innerHTML = '<p class="text-center text-[10px] opacity-50">لا توجد طلبات سحب حالياً</p>';
+            return;
+        }
+
+        container.innerHTML = list.map(w => {
+            const statusColors = { pending: 'text-amber-400', paid: 'text-green-400', rejected: 'text-red-400', refunded: 'text-blue-400' };
+            const isPending = w.status === 'pending';
+
+            return `
+                <div class="bg-white/5 p-3 rounded-xl border border-white/5 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center overflow-hidden border border-white/10">
+                                ${w.photo ? `<img src="${w.photo}" class="w-full h-full object-cover">` : `<span class="text-[10px]">${w.name[0]}</span>`}
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-bold text-white">${w.name}</div>
+                                <div class="text-[8px] text-gray-400">@${w.username || 'N/A'}</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[11px] font-bold ${statusColors[w.status]}">${w.amount} ${w.currency.toUpperCase()}</div>
+                            <div class="text-[8px] text-gray-500">${w.status.toUpperCase()}</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-black/30 p-2 rounded-lg flex items-center justify-between">
+                        <span class="text-[9px] font-mono text-gray-300 truncate flex-1">${w.address}</span>
+                        <button onclick="navigator.clipboard.writeText('${w.address}'); showToast('تم نسخ العنوان', 'info')" class="text-[9px] text-blue-400 px-2">نسخ</button>
+                    </div>
+
+                    ${isPending ? `
+                        <div class="flex gap-1.5">
+                            <button onclick="withdrawAction('${w.id}', 'confirm')" class="flex-1 bg-green-600 text-white py-1.5 rounded-lg text-[9px] font-bold">تأكيد (Paid)</button>
+                            <button onclick="promptReject('${w.id}')" class="flex-1 bg-red-600 text-white py-1.5 rounded-lg text-[9px] font-bold">رفض (Reject)</button>
+                            <button onclick="withdrawAction('${w.id}', 'refund')" class="flex-1 bg-blue-600 text-white py-1.5 rounded-lg text-[9px] font-bold">ترجيع (Refund)</button>
+                        </div>
+                    ` : (w.status === 'rejected' ? `<div class="text-[8px] text-red-400">السبب: ${w.rejection_reason || 'غير محدد'}</div>` : '')}
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function withdrawAction(id, action, reason = '') {
+        const user = tg.initDataUnsafe?.user;
+        try {
+            const res = await fetch(`${BACKEND_URL}/admin/withdrawals/action`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id, initData: tg.initData, id, action, reason })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                showToast("تم تنفيذ العملية بنجاح", "success");
+                loadAdminWithdrawals();
+                refreshAdminData();
+            }
+        } catch (e) { showToast("خطأ في الاتصال", "error"); }
+    }
+
+    function promptReject(id) {
+        const reason = prompt("يرجى إدخال سبب الرفض:");
+        if (reason !== null) {
+            withdrawAction(id, 'reject', reason);
         }
     }
 
@@ -1854,7 +2040,118 @@
         }
     }
     function startClanWar() { showToast('بدأت الحرب! ⚔️','info'); }
-    function showWalletModal() { document.getElementById('walletModal').classList.remove('hidden'); }
+    let tonConnector = null;
+    let tonPrice = 0;
+
+    async function fetchTonPrice() {
+        try {
+            const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
+            const data = await res.json();
+            tonPrice = data['the-open-network'].usd;
+            updateWalletUI();
+        } catch (e) { console.error("Failed to fetch TON price:", e); }
+    }
+
+    function initTonConnect() {
+        if (tonConnector) return;
+        tonConnector = new TonConnectSDK.TonConnect({
+            manifestUrl: window.location.origin + '/tonconnect-manifest.json'
+        });
+
+        tonConnector.onStatusChange(wallet => {
+            if (wallet) {
+                const rawAddr = wallet.account.address;
+                // Convert hex to friendly if needed, but for now we save raw
+                playerData.wallet_address = rawAddr;
+                updateWalletBackend(rawAddr);
+                showToast("تم ربط المحفظة بنجاح", "success");
+            } else {
+                playerData.wallet_address = null;
+                updateWalletBackend(null);
+            }
+            updateWalletUI();
+        });
+
+        const btnCont = document.getElementById('tonConnectBtn');
+        // Custom button for better UI
+        btnCont.innerHTML = `<button id="tonConnectCustomBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl font-bold text-xs shadow-lg transition-all active:scale-95 flex items-center gap-2">
+            <img src="https://ton.org/download/ton_symbol.png" class="w-4 h-4">
+            Connect TON Wallet
+        </button>`;
+
+        document.getElementById('tonConnectCustomBtn').onclick = () => {
+            if (tonConnector.connected) {
+                tonConnector.disconnect();
+            } else {
+                tonConnector.connect({ universalLink: 'https://tonkeeper.com/ton-connect', bridgeUrl: 'https://bridge.tonapi.io/bridge' });
+            }
+        };
+    }
+
+    async function updateWalletBackend(address) {
+        const user = tg.initDataUnsafe?.user;
+        if (!user) return;
+        try {
+            await fetch(`${BACKEND_URL}/wallet/update`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id, address: address, initData: tg.initData })
+            });
+        } catch (e) { console.error("Update wallet backend failed:", e); }
+    }
+
+    function updateWalletUI() {
+        document.getElementById('walletTonBalance').textContent = playerData.ton.toFixed(2);
+        document.getElementById('walletUsdtBalance').textContent = playerData.usdt.toFixed(2);
+        document.getElementById('walletGoldBalance').textContent = Math.floor(playerData.gold).toLocaleString();
+
+        const inUsdt = (playerData.ton * tonPrice).toFixed(2);
+        document.getElementById('walletTonInUsdt').textContent = `≈ $${inUsdt} USDT`;
+
+        const info = document.getElementById('walletInfo');
+        const btn = document.getElementById('tonConnectBtn');
+        if (playerData.wallet_address) {
+            info.classList.remove('hidden');
+            btn.classList.add('hidden');
+            const addr = playerData.wallet_address;
+            document.getElementById('connectedAddress').textContent = addr.substring(0,6) + '...' + addr.substring(addr.length-4);
+        } else {
+            info.classList.add('hidden');
+            btn.classList.remove('hidden');
+        }
+    }
+
+    async function requestWithdrawal() {
+        const amount = parseFloat(document.getElementById('withdrawAmount').value);
+        const currency = document.getElementById('withdrawCurrency').value;
+        const user = tg.initDataUnsafe?.user;
+
+        if (!amount || amount <= 0) { showToast("أدخل كمية صحيحة", "error"); return; }
+        if (!playerData.wallet_address) { showToast("يرجى ربط المحفظة أولاً", "error"); return; }
+
+        try {
+            const res = await fetch(`${BACKEND_URL}/withdraw/request`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id, amount, currency, initData: tg.initData })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                showToast(data.message, "success");
+                checkUserStatus(); // Refresh balance
+                document.getElementById('withdrawAmount').value = '';
+            } else {
+                showToast(data.error, "error");
+            }
+        } catch (e) { showToast("خطأ في الاتصال", "error"); }
+    }
+
+    function showWalletModal() {
+        document.getElementById('walletModal').classList.remove('hidden');
+        initTonConnect();
+        fetchTonPrice();
+        updateWalletUI();
+    }
     function showSettingsModal() { document.getElementById('settingsModal').classList.remove('hidden'); }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
