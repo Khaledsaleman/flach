@@ -45,7 +45,7 @@ def handle_update(update):
         welcome_text += "اضغط على الزر أدناه للدخول إلى اللعبة والبدء في المغامرة:"
 
         # Append referrer to the URL to ensure it's captured
-        web_app_url = "https://khaledsaleman.github.io/flach/"
+        web_app_url = "https://flach.onrender.com/"
         if referrer:
             web_app_url += f"?startapp={referrer}"
 

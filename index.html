@@ -1795,6 +1795,7 @@
         }
 
         checkUserStatus();
+        initTonConnect();
     });
 
     let originalAttackTabHTML = '';
@@ -2059,26 +2060,48 @@
         }
     }
 
-    function initTonConnect() {
+    async function initTonConnect() {
         if (tonConnector) return;
 
-        tonConnector = new TON_CONNECT_UI.TonConnectUI({
-            manifestUrl: 'https://flach.onrender.com/tonconnect-manifest.json', // Use full URL for manifest
-            buttonRootId: 'tonConnectBtn'
-        });
+        try {
+            // Use full URL to the manifest, ensuring it's from the current origin
+            const manifest = window.location.origin + '/tonconnect-manifest.json';
 
-        tonConnector.onStatusChange(wallet => {
-            if (wallet) {
-                const rawAddr = wallet.account.address;
-                playerData.wallet_address = rawAddr;
-                updateWalletBackend(rawAddr);
-                showToast("تم ربط المحفظة بنجاح", "success");
-            } else {
-                playerData.wallet_address = null;
-                updateWalletBackend(null);
-            }
-            updateWalletUI();
-        });
+            tonConnector = new TON_CONNECT_UI.TonConnectUI({
+                manifestUrl: manifest,
+                buttonRootId: 'tonConnectBtn'
+            });
+
+            // Handle session restoration
+            await tonConnector.connectionRestored;
+
+            // Global error listener
+            window.addEventListener('ton-connect-ui-error', (event) => {
+                console.error('TonConnect UI Error:', event.detail);
+                showToast("خطأ في محفظة TON", "error");
+            });
+
+            tonConnector.onStatusChange(wallet => {
+                if (wallet) {
+                    const rawAddr = wallet.account.address;
+                    if (playerData.wallet_address !== rawAddr) {
+                        playerData.wallet_address = rawAddr;
+                        updateWalletBackend(rawAddr);
+                        showToast("تم ربط المحفظة بنجاح", "success");
+                    }
+                } else {
+                    if (playerData.wallet_address) {
+                        playerData.wallet_address = null;
+                        updateWalletBackend(null);
+                        showToast("تم فصل المحفظة", "info");
+                    }
+                }
+                updateWalletUI();
+            });
+        } catch (e) {
+            console.error("TonConnect init failed:", e);
+            showToast("فشل تهيئة الاتصال بالمحفظة", "error");
+        }
     }
 
     async function updateWalletBackend(address) {
