@@ -1163,6 +1163,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     user_id: user.id,
+                    initData: tg.initData,
                     tg_username: user.username || '',
                     username: user.first_name + (user.last_name ? ' ' + user.last_name : ''),
                     photo: user.photo_url,
@@ -1278,7 +1279,7 @@
             const response = await fetch(`${BACKEND_URL}/daily-task/claim`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.id })
+                body: JSON.stringify({ user_id: user.id, initData: tg.initData })
             });
             const data = await response.json();
             if (data.status === 'ok') {
@@ -1977,7 +1978,7 @@
             const response = await fetch(`${BACKEND_URL}/referrals/claim-rewards`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.id })
+                body: JSON.stringify({ user_id: user.id, initData: tg.initData })
             });
             const data = await response.json();
             if (data.status === 'ok') {
@@ -1999,7 +2000,7 @@
             const response = await fetch(`${BACKEND_URL}/daily-reward/claim`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.id })
+                body: JSON.stringify({ user_id: user.id, initData: tg.initData })
             });
             const data = await response.json();
             if (data.status === 'ok') {
@@ -2021,7 +2022,7 @@
             const response = await fetch(`${BACKEND_URL}/attack/perform`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.id })
+                body: JSON.stringify({ user_id: user.id, initData: tg.initData })
             });
             const data = await response.json();
 
@@ -2085,9 +2086,7 @@
                 if (wallet) {
                     const rawAddr = wallet.account.address;
                     if (playerData.wallet_address !== rawAddr) {
-                        playerData.wallet_address = rawAddr;
                         updateWalletBackend(rawAddr);
-                        showToast("تم ربط المحفظة بنجاح", "success");
                     }
                 } else {
                     if (playerData.wallet_address) {
@@ -2108,12 +2107,25 @@
         const user = tg.initDataUnsafe?.user;
         if (!user) return;
         try {
-            await fetch(`${BACKEND_URL}/wallet/update`, {
+            const response = await fetch(`${BACKEND_URL}/wallet/update`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id: user.id, address: address, initData: tg.initData })
             });
-        } catch (e) { console.error("Update wallet backend failed:", e); }
+            const data = await response.json();
+            if (data.status === 'ok') {
+                playerData.wallet_address = data.address;
+                if (data.address) {
+                    showToast("تم ربط المحفظة بنجاح", "success");
+                }
+                updateWalletUI();
+            } else {
+                showToast("فشل تحديث بيانات المحفظة في السيرفر", "error");
+            }
+        } catch (e) {
+            console.error("Update wallet backend failed:", e);
+            showToast("خطأ في الاتصال بالسيرفر", "error");
+        }
     }
 
     function updateWalletUI() {
@@ -2143,7 +2155,17 @@
         const user = tg.initDataUnsafe?.user;
 
         if (!amount || amount <= 0) { showToast("أدخل كمية صحيحة", "error"); return; }
-        if (!playerData.wallet_address) { showToast("يرجى ربط المحفظة أولاً", "error"); return; }
+
+        // Re-check from backend if local state says null just in case
+        if (!playerData.wallet_address) {
+            console.log("Local wallet_address is null, checking status before withdrawal...");
+            await checkUserStatus();
+        }
+
+        if (!playerData.wallet_address) {
+            showToast("يرجى ربط المحفظة أولاً", "error");
+            return;
+        }
 
         try {
             const res = await fetch(`${BACKEND_URL}/withdraw/request`, {
