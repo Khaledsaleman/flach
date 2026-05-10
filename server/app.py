@@ -6,7 +6,7 @@ import uuid
 import sqlite3
 import time
 from datetime import datetime, timezone
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
 from dotenv import load_dotenv
