@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
+from urllib.parse import parse_qs
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -106,22 +107,31 @@ load_settings()
 
 def verify_telegram_data(init_data):
     """
-    Verifies the data received from the Telegram Web App.
-    See: https://core.telegram.org/bots/webapps#validating-data-received-via-the-web-app
+    Verifies the data received from the Telegram Web App and returns the validated user object if successful.
     """
     if not init_data:
-        return False
+        return None
 
     try:
-        vals = {k: v for k, v in [s.split('=') for s in init_data.split('&')]}
-        data_check_string = '\n'.join([f"{k}={v}" for k, v in sorted(vals.items()) if k != 'hash'])
+        parsed_data = parse_qs(init_data)
+        vals = {k: v[0] for k, v in parsed_data.items()}
+
+        # Create check string
+        sorted_keys = sorted([k for k in vals.keys() if k != 'hash'])
+        data_check_string = '\n'.join([f"{k}={vals[k]}" for k in sorted_keys])
 
         secret_key = hmac.new("WebAppData".encode(), BOT_TOKEN.encode(), hashlib.sha256).digest()
         h = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
-        return h == vals.get('hash')
-    except Exception:
-        return False
+        if h == vals.get('hash'):
+            # Return the user data
+            if 'user' in vals:
+                return json.loads(vals['user'])
+            return True
+        return None
+    except Exception as e:
+        print(f"Telegram verification error: {e}")
+        return None
 
 def is_admin_request(data):
     """Checks if the request is from the authorized admin."""
@@ -500,11 +510,19 @@ def manage_withdrawals():
 @app.route('/check-status', methods=['POST'])
 def check_status():
     data = request.json
-    if not data or 'user_id' not in data:
-        return jsonify({"error": "Missing user_id"}), 400
+    init_data = data.get('initData')
+
+    validated_user = verify_telegram_data(init_data)
+    if not validated_user:
+        # Fallback to provided user_id for non-verified requests if necessary,
+        # but for security we should prefer validated_user
+        user_id = str(data.get('user_id'))
+        if not user_id:
+            return jsonify({"error": "Missing user identification"}), 400
+    else:
+        user_id = str(validated_user['id'])
 
     load_settings()
-    user_id = str(data.get('user_id'))
 
     # Priority for referrer: direct 'referrer' field, then parse from initData start_param
     referrer = str(data.get('referrer')) if data.get('referrer') else None
@@ -621,7 +639,12 @@ def get_leaderboard():
 @app.route('/daily-reward/claim', methods=['POST'])
 def claim_daily_reward():
     data = request.json
-    user_id = str(data.get('user_id'))
+    init_data = data.get('initData')
+    validated_user = verify_telegram_data(init_data)
+    if not validated_user:
+        user_id = str(data.get('user_id'))
+    else:
+        user_id = str(validated_user['id'])
 
     conn = get_db_connection()
     user = conn.execute('SELECT last_daily_reward_time, gold FROM users WHERE id = ?', (user_id,)).fetchone()
@@ -654,7 +677,13 @@ def claim_daily_reward():
 @app.route('/referrals/claim-rewards', methods=['POST'])
 def claim_referral_rewards():
     data = request.json
-    user_id = str(data.get('user_id'))
+    init_data = data.get('initData')
+
+    validated_user = verify_telegram_data(init_data)
+    if not validated_user:
+        user_id = str(data.get('user_id'))
+    else:
+        user_id = str(validated_user['id'])
 
     load_settings()
     if not game_state["settings"].get("referral_rewards_enabled", True):
@@ -705,7 +734,12 @@ def claim_referral_rewards():
 @app.route('/attack/perform', methods=['POST'])
 def perform_attack():
     data = request.json
-    user_id = str(data.get('user_id'))
+    init_data = data.get('initData')
+    validated_user = verify_telegram_data(init_data)
+    if not validated_user:
+        user_id = str(data.get('user_id'))
+    else:
+        user_id = str(validated_user['id'])
 
     load_settings()
     if not game_state["settings"].get("attack_enabled", True):
@@ -759,7 +793,12 @@ def perform_attack():
 @app.route('/daily-task/claim', methods=['POST'])
 def claim_daily_task_reward():
     data = request.json
-    user_id = str(data.get('user_id'))
+    init_data = data.get('initData')
+    validated_user = verify_telegram_data(init_data)
+    if not validated_user:
+        user_id = str(data.get('user_id'))
+    else:
+        user_id = str(validated_user['id'])
 
     load_settings()
     wins_required = game_state["settings"].get("daily_task_wins_required", 20)
@@ -869,8 +908,13 @@ def list_referrals():
 @app.route('/tasks/verify', methods=['POST'])
 def verify_task():
     data = request.json
-    print(f"Verifying task: {data}")
-    user_id = str(data.get('user_id'))
+    init_data = data.get('initData')
+
+    validated_user = verify_telegram_data(init_data)
+    if not validated_user:
+        return jsonify({"status": "error", "error": "Unauthorized"}), 401
+
+    user_id = str(validated_user['id'])
     task_id = int(data.get('task_id'))
 
     conn = get_db_connection()
@@ -970,32 +1014,35 @@ def notify():
 @app.route('/wallet/update', methods=['POST'])
 def update_wallet():
     data = request.json
-    user_id = str(data.get('user_id'))
     address = data.get('address')
     init_data = data.get('initData')
 
-    if not verify_telegram_data(init_data):
+    validated_user = verify_telegram_data(init_data)
+    if not validated_user:
         return jsonify({"status": "error", "error": "Unauthorized"}), 401
 
-    if not user_id or not address:
-        return jsonify({"status": "error", "error": "بيانات ناقصة"}), 400
+    # Extract user_id from validated telegram data for security
+    user_id = str(validated_user['id'])
 
     conn = get_db_connection()
     conn.execute('UPDATE users SET wallet_address = ? WHERE id = ?', (address, user_id))
     conn.commit()
     conn.close()
-    return jsonify({"status": "ok", "message": "تم تحديث المحفظة بنجاح"})
+    print(f"Wallet updated for user {user_id}: {address}")
+    return jsonify({"status": "ok", "message": "تم تحديث المحفظة بنجاح", "address": address})
 
 @app.route('/withdraw/request', methods=['POST'])
 def request_withdrawal():
     data = request.json
-    user_id = str(data.get('user_id'))
     amount = float(data.get('amount', 0))
     currency = data.get('currency', 'ton').lower()
     init_data = data.get('initData')
 
-    if not verify_telegram_data(init_data):
+    validated_user = verify_telegram_data(init_data)
+    if not validated_user:
         return jsonify({"status": "error", "error": "Unauthorized"}), 401
+
+    user_id = str(validated_user['id'])
 
     if amount <= 0:
         return jsonify({"status": "error", "error": "المبلغ يجب أن يكون أكبر من صفر"}), 400
